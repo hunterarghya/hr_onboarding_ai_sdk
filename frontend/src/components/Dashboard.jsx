@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, RefreshCw, LogOut, Mail } from 'lucide-react';
+import { Plus, Search, RefreshCw, LogOut } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -9,6 +9,10 @@ const Dashboard = ({ token, onLogout }) => {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [waStatus, setWaStatus] = useState({ status: 'not connected', qrCodeData: null });
+  const [waGroups, setWaGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState('');
+  const [showQR, setShowQR] = useState(false);
   const [newJob, setNewJob] = useState({
     role: '',
     salary: '',
@@ -21,7 +25,15 @@ const Dashboard = ({ token, onLogout }) => {
   useEffect(() => {
     fetchJobs();
     fetchCandidates();
+    const interval = setInterval(fetchWAStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (waStatus.status === 'ready') {
+      fetchWAGroups();
+    }
+  }, [waStatus.status]);
 
   const fetchJobs = async () => {
     try {
@@ -41,6 +53,25 @@ const Dashboard = ({ token, onLogout }) => {
     }
   };
 
+  const fetchWAStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/whatsapp/status`);
+      setWaStatus(response.data);
+      // Removed automatic setShowQR(true)
+    } catch (err) {
+      console.error('Error fetching WA status:', err);
+    }
+  };
+
+  const fetchWAGroups = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/whatsapp/groups`);
+      setWaGroups(response.data);
+    } catch (err) {
+      console.error('Error fetching WA groups:', err);
+    }
+  };
+
   const handleCreateJob = async (e) => {
     e.preventDefault();
     try {
@@ -52,36 +83,93 @@ const Dashboard = ({ token, onLogout }) => {
     }
   };
 
-  const handleScanEmails = async () => {
+  const handleScan = async () => {
     setScanning(true);
     try {
-      const response = await axios.post(`${API_URL}/candidates/scan`, {}, {
+      const response = await axios.post(`${API_URL}/candidates/scan`, {
+        whatsappGroupId: selectedGroup
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert(response.data.message);
       fetchCandidates();
     } catch (err) {
-      console.error('Error scanning emails:', err);
-      alert('Scanning failed. Make sure your Gmail API is enabled and Ollama is running.');
+      console.error('Error scanning:', err);
+      alert('Scanning failed. Check logs.');
     } finally {
       setScanning(false);
     }
   };
 
+  const getStatusColor = () => {
+    switch(waStatus.status) {
+      case 'ready': return '#10b981';
+      case 'authenticated': return '#3b82f6';
+      case 'qr': return '#f59e0b';
+      case 'error': return '#ef4444';
+      default: return 'var(--text-muted)';
+    }
+  };
+
+  const isScanDisabled = scanning || (selectedGroup && waStatus.status !== 'ready');
+
   return (
     <div className="container">
       <nav className="nav">
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>HR Dashboard</h2>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button onClick={handleScanEmails} disabled={scanning} className="btn-primary" style={{ backgroundColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {scanning ? <RefreshCw className="spin" size={18} /> : <Mail size={18} />}
-            {scanning ? 'Scanning Inbox...' : 'Scan Mail'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>HR Dashboard</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: getStatusColor() }}></div>
+              <span style={{ fontWeight: '500' }}>WhatsApp: {waStatus.status}</span>
+            </div>
+            {waStatus.status !== 'ready' && waStatus.status !== 'authenticated' && (
+              <button 
+                onClick={() => setShowQR(true)} 
+                className="btn-primary" 
+                style={{ padding: '4px 12px', fontSize: '0.75rem', backgroundColor: 'var(--primary)' }}
+              >
+                {waStatus.status === 'qr' ? 'View QR Code' : 'Connect WhatsApp'}
+              </button>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {waStatus.status === 'ready' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <select 
+                value={selectedGroup} 
+                onChange={e => setSelectedGroup(e.target.value)}
+                style={{ width: '200px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
+              >
+                <option value="">No WhatsApp Group</option>
+                {waGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              <button onClick={fetchWAGroups} title="Refresh Groups" style={{ padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(255,255,255,0.1)' }}>
+                <RefreshCw size={16} />
+              </button>
+            </div>
+          )}
+          <button onClick={handleScan} disabled={isScanDisabled} className="btn-primary" style={{ backgroundColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {scanning ? <RefreshCw className="spin" size={18} /> : <Search size={18} />}
+            {scanning ? 'Processing...' : 'Scan Mail & WhatsApp'}
           </button>
           <button onClick={onLogout} className="btn-primary" style={{ backgroundColor: 'transparent', border: '1px solid var(--border)' }}>
             <LogOut size={18} />
           </button>
         </div>
       </nav>
+
+      {showQR && waStatus.qrCodeData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
+          <div className="glass-card" style={{ textAlign: 'center' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Scan QR for WhatsApp</h3>
+            <img src={waStatus.qrCodeData} alt="WhatsApp QR" style={{ borderRadius: '0.5rem', marginBottom: '1rem' }} />
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Open WhatsApp on your phone and scan</p>
+            <button onClick={() => setShowQR(false)} style={{ marginTop: '1rem' }}>Close</button>
+          </div>
+        </div>
+      )}
 
       <div className="grid">
         {/* Job Creation Section */}

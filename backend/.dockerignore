@@ -1,0 +1,7 @@
+node_modules
+npm-debug.log
+whatsapp-auth
+.wwebjs_cache
+.wwebjs_auth
+backend_logs.txt
+.env

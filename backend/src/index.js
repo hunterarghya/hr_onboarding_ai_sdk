@@ -7,9 +7,14 @@ const { Pool } = require('pg');
 const authRoutes = require('./routes/auth');
 const jobRoutes = require('./routes/jobs');
 const candidateRoutes = require('./routes/candidates');
+const whatsappRoutes = require('./routes/whatsapp');
+const { initWhatsApp } = require('./services/whatsapp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize WhatsApp
+initWhatsApp();
 
 // Middleware
 app.use(cors());
@@ -61,6 +66,7 @@ initDb();
 app.use('/auth', authRoutes);
 app.use('/jobs', jobRoutes);
 app.use('/candidates', candidateRoutes);
+app.use('/whatsapp', whatsappRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

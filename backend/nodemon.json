@@ -1,0 +1,10 @@
+{
+  "watch": ["src"],
+  "ignore": [
+    "whatsapp-auth/*",
+    ".wwebjs_cache/*",
+    ".wwebjs_auth/*"
+  ],
+  "ext": "js,json",
+  "verbose": true
+}

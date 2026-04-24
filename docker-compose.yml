@@ -32,6 +32,10 @@ services:
     container_name: hr-backend
     ports:
       - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./backend/whatsapp-auth:/app/whatsapp-auth
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-hr_onboarding}
       - REDIS_URL=redis://redis:6379
@@ -51,6 +55,9 @@ services:
     container_name: hr-frontend
     ports:
       - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:3000
     depends_on:

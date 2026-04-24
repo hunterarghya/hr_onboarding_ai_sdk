@@ -38,3 +38,6 @@ Thumbs.db
 # Ollama data (local)
 ollama_data/
 postgres_data/
+whatsapp-auth/
+.wwebjs_cache/
+.wwebjs_auth/

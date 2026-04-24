@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon --verbose src/index.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -17,7 +17,9 @@
     "morgan": "^1.10.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.11.3",
-    "redis": "^4.6.10"
+    "redis": "^4.6.10",
+    "whatsapp-web.js": "https://github.com/wwebjs/whatsapp-web.js/tarball/main",
+    "qrcode": "^1.5.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

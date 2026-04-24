@@ -1,0 +1,389 @@
+hr-frontend  |   ➜  Local:   http://localhost:5173/
+hr-frontend  |   ➜  Network: http://172.19.0.6:5173/
+hr-backend   | --- WhatsApp: Initialization Sequence Started ---                                   
+hr-backend   | Server running on port 3000
+hr-backend   | Database tables initialized
+hr-backend   | GET /candidates 200 64.531 ms - 37000
+hr-backend   | GET /whatsapp/status 200 0.899 ms - 43
+hr-backend   | GET /candidates 304 2.510 ms - -                                                    
+hr-backend   | GET /candidates 304 2.789 ms - -
+hr-backend   | GET /jobs 304 17.181 ms - -
+hr-backend   | GET /jobs 304 1.425 ms - -
+hr-backend   | GET /jobs 304 1.422 ms - -
+hr-backend   | GET /candidates 304 1.836 ms - -
+hr-backend   | GET /jobs 304 1.635 ms - -
+hr-backend   | GET /candidates 304 6.172 ms - -
+hr-backend   | GET /whatsapp/status 304 0.455 ms - -
+hr-backend   | --- WhatsApp: Client is READY ---
+hr-backend   | GET /whatsapp/status 200 0.248 ms - 36
+hr-backend   | GET /whatsapp/groups 304 1560.217 ms - -
+hr-backend   | GET /whatsapp/status 304 0.604 ms - -
+hr-backend   | --- [Pipeline] Starting Global Scan for pahaariaexpress@gmail.com ---
+hr-backend   | --- [Phase 1] Gmail Scanning ---
+hr-backend   | Fetching top 10 emails from Gmail...
+hr-backend   | GET /whatsapp/status 304 0.290 ms - -
+hr-backend   | Analyzing email content...
+hr-ollama    | time=2026-04-24T17:55:25.749Z level=WARN source=cpu_linux.go:130 msg="failed to parse CPU allowed micro secs" error="strconv.ParseInt: parsing \"max\": invalid syntax"
+hr-ollama    | llama_model_loader: loaded meta data with 22 key-value pairs and 291 tensors from /root/.ollama/models/blobs/sha256-6a0746a1ec1aef3e7ec53868f220ff6e389f6f8ef87a01d77c96807de94ca2aa (version GGUF V3 (latest))
+hr-ollama    | llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.                                                                                      
+hr-ollama    | llama_model_loader: - kv   0:                       general.architecture str              = llama                                                                                      
+hr-ollama    | llama_model_loader: - kv   1:                               general.name str              = Meta-Llama-3-8B-Instruct                                                                   
+hr-ollama    | llama_model_loader: - kv   2:                          llama.block_count u32              = 32                                                                                         
+hr-ollama    | llama_model_loader: - kv   3:                       llama.context_length u32              = 8192                                                                                       
+hr-ollama    | llama_model_loader: - kv   4:                     llama.embedding_length u32              = 4096                                                                                       
+hr-ollama    | llama_model_loader: - kv   5:                  llama.feed_forward_length u32              = 14336                                                                                      
+hr-ollama    | llama_model_loader: - kv   6:                 llama.attention.head_count u32              = 32                                                                                         
+hr-ollama    | llama_model_loader: - kv   7:              llama.attention.head_count_kv u32              = 8                                                                                          
+hr-ollama    | llama_model_loader: - kv   8:                       llama.rope.freq_base f32              = 500000.000000                                                                              
+hr-ollama    | llama_model_loader: - kv   9:     llama.attention.layer_norm_rms_epsilon f32              = 0.000010                                                                                   
+hr-ollama    | llama_model_loader: - kv  10:                          general.file_type u32              = 2                                                                                          
+hr-ollama    | llama_model_loader: - kv  11:                           llama.vocab_size u32              = 128256                                                                                     
+hr-ollama    | llama_model_loader: - kv  12:                 llama.rope.dimension_count u32              = 128                                                                                        
+hr-ollama    | llama_model_loader: - kv  13:                       tokenizer.ggml.model str              = gpt2                                                                                       
+hr-ollama    | llama_model_loader: - kv  14:                         tokenizer.ggml.pre str              = llama-bpe                                                                                  
+hr-ollama    | llama_model_loader: - kv  15:                      tokenizer.ggml.tokens arr[str,128256]  = ["!", "\"", "#", "$", "%", "&", "'", ...                                                   
+hr-ollama    | llama_model_loader: - kv  16:                  tokenizer.ggml.token_type arr[i32,128256]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...                                                   
+hr-ollama    | llama_model_loader: - kv  17:                      tokenizer.ggml.merges arr[str,280147]  = ["Ġ Ġ", "Ġ ĠĠĠ", "ĠĠ ĠĠ", "...
+hr-ollama    | llama_model_loader: - kv  18:                tokenizer.ggml.bos_token_id u32              = 128000                                                                                     
+hr-ollama    | llama_model_loader: - kv  19:                tokenizer.ggml.eos_token_id u32              = 128009                                                                                     
+hr-ollama    | llama_model_loader: - kv  20:                    tokenizer.chat_template str              = {% set loop_messages = messages %}{% ...                                                   
+hr-ollama    | llama_model_loader: - kv  21:               general.quantization_version u32              = 2                                                                                          
+hr-ollama    | llama_model_loader: - type  f32:   65 tensors
+hr-ollama    | llama_model_loader: - type q4_0:  225 tensors
+hr-ollama    | llama_model_loader: - type q6_K:    1 tensors                                       
+hr-ollama    | print_info: file format = GGUF V3 (latest)                                          
+hr-ollama    | print_info: file type   = Q4_0                                                      
+hr-ollama    | print_info: file size   = 4.33 GiB (4.64 BPW) 
+hr-ollama    | load: printing all EOG tokens:                                                      
+hr-ollama    | load:   - 128001 ('<|end_of_text|>')
+hr-ollama    | load:   - 128009 ('<|eot_id|>')
+hr-ollama    | load: special tokens cache size = 256                                               
+hr-ollama    | load: token to piece cache size = 0.8000 MB
+hr-ollama    | print_info: arch             = llama                                                
+hr-ollama    | print_info: vocab_only       = 1                                                    
+hr-ollama    | print_info: no_alloc         = 0                                                    
+hr-ollama    | print_info: model type       = ?B
+hr-ollama    | print_info: model params     = 8.03 B                                               
+hr-ollama    | print_info: general.name     = Meta-Llama-3-8B-Instruct                             
+hr-ollama    | print_info: vocab type       = BPE                                                  
+hr-ollama    | print_info: n_vocab          = 128256                                               
+hr-ollama    | print_info: n_merges         = 280147                                               
+hr-ollama    | print_info: BOS token        = 128000 '<|begin_of_text|>'
+hr-ollama    | print_info: EOS token        = 128009 '<|eot_id|>'                                  
+hr-ollama    | print_info: EOT token        = 128009 '<|eot_id|>'                                  
+hr-ollama    | print_info: LF token         = 198 'Ċ'                                              
+hr-ollama    | print_info: EOG token        = 128001 '<|end_of_text|>'                             
+hr-ollama    | print_info: EOG token        = 128009 '<|eot_id|>'                                  
+hr-ollama    | print_info: max token length = 256
+hr-ollama    | llama_model_load: vocab only - skipping tensors                                     
+hr-ollama    | time=2026-04-24T17:55:26.184Z level=INFO source=server.go:444 msg="starting runner" cmd="/usr/bin/ollama runner --model /root/.ollama/models/blobs/sha256-6a0746a1ec1aef3e7ec53868f220ff6e389f6f8ef87a01d77c96807de94ca2aa --port 38547"
+hr-ollama    | time=2026-04-24T17:55:26.185Z level=INFO source=sched.go:484 msg="system memory" total="15.5 GiB" free="15.5 GiB" free_swap="4.0 GiB"                                                  
+hr-ollama    | time=2026-04-24T17:55:26.185Z level=INFO source=server.go:511 msg="loading model" "model layers"=33 requested=-1                                                                       
+hr-ollama    | time=2026-04-24T17:55:26.185Z level=INFO source=device.go:245 msg="model weights" device=CPU size="4.1 GiB"                                                                            
+hr-ollama    | time=2026-04-24T17:55:26.185Z level=INFO source=device.go:256 msg="kv cache" device=CPU size="512.0 MiB"                                                                               
+hr-ollama    | time=2026-04-24T17:55:26.185Z level=INFO source=device.go:272 msg="total memory" size="4.6 GiB"                                                                                        
+hr-ollama    | time=2026-04-24T17:55:26.196Z level=INFO source=runner.go:965 msg="starting go runner"                                                                                                 
+
+                                                                                                   
+hr-ollama    | load_backend: loaded CPU backend from /usr/lib/ollama/libggml-cpu-alderlake.so      
+hr-backend   | GET /whatsapp/status 304 0.335 ms - -
+hr-ollama    | time=2026-04-24T17:55:26.201Z level=INFO source=ggml.go:104 msg=system CPU.0.SSE3=1 CPU.0.SSSE3=1 CPU.0.AVX=1 CPU.0.AVX_VNNI=1 CPU.0.AVX2=1 CPU.0.F16C=1 CPU.0.FMA=1 CPU.0.BMI2=1 CPU.0.LLAMAFILE=1 CPU.1.LLAMAFILE=1 compiler=cgo(gcc)
+hr-ollama    | time=2026-04-24T17:55:26.203Z level=INFO source=runner.go:1001 msg="Server listening on 127.0.0.1:38547"                                                                               
+hr-ollama    | time=2026-04-24T17:55:26.208Z level=INFO source=runner.go:895 msg=load request="{Operation:commit LoraPath:[] Parallel:1 BatchSize:512 FlashAttention:Auto KvSize:4096 KvCacheType: NumThreads:6 GPULayers:[] MultiUserCache:false ProjectorPath: MainGPU:0 UseMmap:false}"
+hr-ollama    | time=2026-04-24T17:55:26.208Z level=INFO source=server.go:1364 msg="waiting for llama runner to start responding"                                                                      
+hr-ollama    | time=2026-04-24T17:55:26.208Z level=INFO source=server.go:1398 msg="waiting for server to become available" status="llm server loading model"                                          
+hr-ollama    | llama_model_loader: loaded meta data with 22 key-value pairs and 291 tensors from /root/.ollama/models/blobs/sha256-6a0746a1ec1aef3e7ec53868f220ff6e389f6f8ef87a01d77c96807de94ca2aa (version GGUF V3 (latest))
+hr-ollama    | llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.                                                                                      
+hr-ollama    | llama_model_loader: - kv   0:                       general.architecture str              = llama
+hr-ollama    | llama_model_loader: - kv   1:                               general.name str              = Meta-Llama-3-8B-Instruct                                                                   
+hr-ollama    | llama_model_loader: - kv   2:                          llama.block_count u32              = 32                                                                                         
+hr-ollama    | llama_model_loader: - kv   3:                       llama.context_length u32              = 8192                                                                                       
+hr-ollama    | llama_model_loader: - kv   4:                     llama.embedding_length u32              = 4096                                                                                       
+hr-ollama    | llama_model_loader: - kv   5:                  llama.feed_forward_length u32              = 14336                                                                                      
+hr-ollama    | llama_model_loader: - kv   6:                 llama.attention.head_count u32              = 32                                                                                         
+hr-ollama    | llama_model_loader: - kv   7:              llama.attention.head_count_kv u32              = 8                                                                                          
+hr-ollama    | llama_model_loader: - kv   8:                       llama.rope.freq_base f32              = 500000.000000                                                                              
+hr-ollama    | llama_model_loader: - kv   9:     llama.attention.layer_norm_rms_epsilon f32              = 0.000010                                                                                   
+hr-ollama    | llama_model_loader: - kv  10:                          general.file_type u32              = 2                                                                                          
+hr-ollama    | llama_model_loader: - kv  11:                           llama.vocab_size u32              = 128256                                                                                     
+hr-ollama    | llama_model_loader: - kv  12:                 llama.rope.dimension_count u32              = 128                                                                                        
+hr-ollama    | llama_model_loader: - kv  13:                       tokenizer.ggml.model str              = gpt2                                                                                       
+hr-ollama    | llama_model_loader: - kv  14:                         tokenizer.ggml.pre str              = llama-bpe                                                                                  
+hr-ollama    | llama_model_loader: - kv  15:                      tokenizer.ggml.tokens arr[str,128256]  = ["!", "\"", "#", "$", "%", "&", "'", ...                                                   
+hr-ollama    | llama_model_loader: - kv  16:                  tokenizer.ggml.token_type arr[i32,128256]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...                                                   
+hr-ollama    | llama_model_loader: - kv  17:                      tokenizer.ggml.merges arr[str,280147]  = ["Ġ Ġ", "Ġ ĠĠĠ", "ĠĠ ĠĠ", "...                                                             
+hr-ollama    | llama_model_loader: - kv  18:                tokenizer.ggml.bos_token_id u32              = 128000                                                                                     
+hr-ollama    | llama_model_loader: - kv  19:                tokenizer.ggml.eos_token_id u32              = 128009                                                                                     
+hr-ollama    | llama_model_loader: - kv  20:                    tokenizer.chat_template str              = {% set loop_messages = messages %}{% ...                                                   
+hr-ollama    | llama_model_loader: - kv  21:               general.quantization_version u32              = 2                                                                                          
+hr-ollama    | llama_model_loader: - type  f32:   65 tensors
+hr-ollama    | llama_model_loader: - type q4_0:  225 tensors
+hr-ollama    | llama_model_loader: - type q6_K:    1 tensors                                       
+hr-ollama    | print_info: file format = GGUF V3 (latest)
+hr-ollama    | print_info: file type   = Q4_0                                                      
+hr-ollama    | print_info: file size   = 4.33 GiB (4.64 BPW)                                       
+hr-ollama    | load: printing all EOG tokens:
+hr-ollama    | load:   - 128001 ('<|end_of_text|>')
+hr-ollama    | load:   - 128009 ('<|eot_id|>')                                                     
+hr-ollama    | load: special tokens cache size = 256                                               
+hr-ollama    | load: token to piece cache size = 0.8000 MB                                         
+hr-ollama    | print_info: arch             = llama
+hr-ollama    | print_info: vocab_only       = 0                                                    
+hr-ollama    | print_info: no_alloc         = 0                                                    
+hr-ollama    | print_info: n_ctx_train      = 8192                                                 
+hr-ollama    | print_info: n_embd           = 4096
+hr-ollama    | print_info: n_embd_inp       = 4096                                                 
+hr-ollama    | print_info: n_layer          = 32                                                   
+hr-ollama    | print_info: n_head           = 32
+hr-ollama    | print_info: n_head_kv        = 8                                                    
+hr-ollama    | print_info: n_rot            = 128                                                  
+hr-ollama    | print_info: n_swa            = 0                                                    
+hr-ollama    | print_info: is_swa_any       = 0
+hr-ollama    | print_info: n_embd_head_k    = 128                                                  
+hr-ollama    | print_info: n_embd_head_v    = 128                                                  
+hr-ollama    | print_info: n_gqa            = 4                                                    
+hr-ollama    | print_info: n_embd_k_gqa     = 1024
+hr-ollama    | print_info: n_embd_v_gqa     = 1024                                                 
+hr-ollama    | print_info: f_norm_eps       = 0.0e+00                                              
+hr-ollama    | print_info: f_norm_rms_eps   = 1.0e-05
+hr-ollama    | print_info: f_clamp_kqv      = 0.0e+00                                              
+hr-ollama    | print_info: f_max_alibi_bias = 0.0e+00                                              
+hr-ollama    | print_info: f_logit_scale    = 0.0e+00                                              
+hr-ollama    | print_info: f_attn_scale     = 0.0e+00
+hr-ollama    | print_info: n_ff             = 14336                                                
+hr-ollama    | print_info: n_expert         = 0                                                    
+hr-ollama    | print_info: n_expert_used    = 0
+hr-ollama    | print_info: n_expert_groups  = 0                                                    
+hr-ollama    | print_info: n_group_used     = 0                                                    
+hr-ollama    | print_info: causal attn      = 1                                                    
+hr-ollama    | print_info: pooling type     = 0
+hr-ollama    | print_info: rope type        = 0                                                    
+hr-ollama    | print_info: rope scaling     = linear                                               
+hr-ollama    | print_info: freq_base_train  = 500000.0                                             
+hr-ollama    | print_info: freq_scale_train = 1
+hr-ollama    | print_info: n_ctx_orig_yarn  = 8192                                                 
+hr-ollama    | print_info: rope_yarn_log_mul= 0.0000                                               
+hr-ollama    | print_info: rope_finetuned   = unknown                                              
+hr-ollama    | print_info: model type       = 8B                                                   
+hr-ollama    | print_info: model params     = 8.03 B
+hr-ollama    | print_info: general.name     = Meta-Llama-3-8B-Instruct                             
+hr-ollama    | print_info: vocab type       = BPE                                                  
+hr-ollama    | print_info: n_vocab          = 128256                                               
+hr-ollama    | print_info: n_merges         = 280147
+hr-ollama    | print_info: BOS token        = 128000 '<|begin_of_text|>'                           
+hr-ollama    | print_info: EOS token        = 128009 '<|eot_id|>'                                  
+hr-ollama    | print_info: EOT token        = 128009 '<|eot_id|>'
+hr-ollama    | print_info: LF token         = 198 'Ċ'                                              
+hr-ollama    | print_info: EOG token        = 128001 '<|end_of_text|>'                             
+hr-ollama    | print_info: EOG token        = 128009 '<|eot_id|>'                                  
+hr-ollama    | print_info: max token length = 256
+hr-ollama    | load_tensors: loading model tensors, this can take a while... (mmap = false)        
+hr-ollama    | load_tensors:          CPU model buffer size =  4437.80 MiB                         
+hr-ollama    | llama_context: constructing llama_context                                           
+hr-ollama    | llama_context: n_seq_max     = 1
+hr-ollama    | llama_context: n_ctx         = 4096                                                 
+hr-ollama    | llama_context: n_ctx_seq     = 4096
+hr-ollama    | llama_context: n_batch       = 512
+hr-ollama    | llama_context: n_ubatch      = 512                                                  
+hr-ollama    | llama_context: causal_attn   = 1                                                    
+hr-ollama    | llama_context: flash_attn    = auto
+hr-ollama    | llama_context: kv_unified    = false                                                
+hr-ollama    | llama_context: freq_base     = 500000.0                                             
+hr-ollama    | llama_context: freq_scale    = 1                                                    
+hr-ollama    | llama_context: n_ctx_seq (4096) < n_ctx_train (8192) -- the full capacity of the model will not be utilized                                                                            
+hr-ollama    | llama_context:        CPU  output buffer size =     0.50 MiB
+hr-ollama    | llama_kv_cache:        CPU KV buffer size =   512.00 MiB                            
+hr-ollama    | llama_kv_cache: size =  512.00 MiB (  4096 cells,  32 layers,  1/1 seqs), K (f16):  256.00 MiB, V (f16):  256.00 MiB
+hr-ollama    | llama_context: Flash Attention was auto, set to enabled
+hr-ollama    | llama_context:        CPU compute buffer size =   258.50 MiB                        
+hr-ollama    | llama_context: graph nodes  = 999                                                   
+hr-ollama    | llama_context: graph splits = 1                                                     
+hr-ollama    | time=2026-04-24T17:55:30.744Z level=INFO source=server.go:1402 msg="llama runner started in 4.56 seconds"
+hr-ollama    | time=2026-04-24T17:55:30.744Z level=INFO source=sched.go:561 msg="loaded runners" count=1                                                                                              
+hr-ollama    | time=2026-04-24T17:55:30.744Z level=INFO source=server.go:1364 msg="waiting for llama runner to start responding"                                                                      
+hr-ollama    | time=2026-04-24T17:55:30.744Z level=INFO source=server.go:1402 msg="llama runner started in 4.56 seconds"                                                                              
+hr-backend   | GET /whatsapp/status 304 0.438 ms - -
+hr-backend   | GET /whatsapp/status 304 0.217 ms - -
+hr-ollama    | [GIN] 2026/04/24 - 17:55:38 | 200 | 12.535943862s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   | Raw AI Response (Email Analysis): {
+hr-backend   |   "isApplication": true,                                                            
+hr-backend   |   "position": "backend developer"
+hr-backend   | }                                                                                   
+hr-backend   | --- [Gmail] ✅ Application Found: "Application for backend developer" ---
+hr-backend   | --- Gmail: Collecting raw PDF: 5_6287394206478508465.pdf ---
+hr-backend   | Analyzing email content...
+hr-backend   | GET /whatsapp/status 304 0.291 ms - -
+hr-backend   | GET /whatsapp/status 304 0.614 ms - -
+
+
+hr-backend   | Raw AI Response (Email Analysis): {
+hr-ollama    | [GIN] 2026/04/24 - 17:55:47 | 200 |  7.565385751s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   | "isApplication": false,                                                             
+hr-backend   | "position": null                                                                    
+hr-backend   | }
+hr-backend   | Analyzing email content...                                                          
+hr-backend   | GET /whatsapp/status 304 0.467 ms - -                                               
+
+
+hr-ollama    | [GIN] 2026/04/24 - 17:55:54 | 200 |  7.864814476s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   | Raw AI Response (Email Analysis): {
+hr-backend   |   "isApplication": false,                                                           
+hr-backend   |   "position": null                                                                  
+hr-backend   | }
+hr-backend   | Analyzing email content...                                                          
+hr-backend   | GET /whatsapp/status 304 0.191 ms - -
+hr-backend   | GET /whatsapp/status 304 0.223 ms - -
+
+
+hr-backend   | Raw AI Response (Email Analysis): {
+hr-ollama    | [GIN] 2026/04/24 - 17:56:05 | 200 | 10.957359884s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   |   "isApplication": false,                                                           
+hr-backend   |   "position": null
+hr-backend   | }
+hr-backend   | Analyzing email content...                                                          
+hr-backend   | GET /whatsapp/status 304 0.243 ms - -                                               
+hr-backend   | GET /whatsapp/status 304 0.254 ms - -
+hr-ollama    | [GIN] 2026/04/24 - 17:56:11 | 200 |  5.944209918s |      172.19.0.5 | POST     "/api/generate"
+                                                                                                   
+                                                                                                   
+hr-backend   | Raw AI Response (Email Analysis): {
+hr-backend   | "isApplication": false,
+hr-backend   | "position": null                                                                    
+hr-backend   | }                                                                                   
+hr-backend   | Analyzing email content...
+hr-backend   | GET /whatsapp/status 304 0.322 ms - -                                               
+hr-backend   | GET /whatsapp/status 304 0.348 ms - -
+
+
+hr-backend   | Raw AI Response (Email Analysis): {
+hr-ollama    | [GIN] 2026/04/24 - 17:56:23 | 200 | 12.162000315s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   |   "isApplication": false,                                                           
+hr-backend   |   "position": null
+hr-backend   | }
+hr-backend   | Analyzing email content...
+hr-backend   | GET /whatsapp/status 304 0.338 ms - -
+
+
+hr-backend   | Raw AI Response (Email Analysis): {
+hr-ollama    | [GIN] 2026/04/24 - 17:56:26 | 200 |  3.059110135s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   |   "isApplication": false,
+hr-backend   |   "position": null
+hr-backend   | }
+hr-backend   | --- [Phase 2] WhatsApp Scanning ---
+hr-backend   | --- WhatsApp: Scanning Group 120363406146465942@g.us (Doc-Based) ---
+hr-backend   | --- WhatsApp: Fetching messages for Devtesting01 ---
+hr-backend   | --- WhatsApp: Found 21 messages. Checking media... ---
+hr-backend   | GET /whatsapp/status 304 0.343 ms - -
+hr-backend   | GET /whatsapp/status 304 0.205 ms - -
+hr-backend   | GET /whatsapp/status 304 0.248 ms - -
+hr-backend   | GET /whatsapp/status 304 0.305 ms - -
+hr-backend   | GET /whatsapp/status 304 0.219 ms - -
+hr-backend   | GET /whatsapp/status 304 0.274 ms - -
+hr-backend   | GET /whatsapp/status 304 0.190 ms - -
+hr-backend   | GET /whatsapp/status 304 0.326 ms - -
+hr-backend   | GET /whatsapp/status 304 0.209 ms - -
+hr-backend   | GET /whatsapp/status 304 0.224 ms - -
+hr-backend   | GET /whatsapp/status 304 0.210 ms - -
+hr-backend   | GET /whatsapp/status 304 0.366 ms - -
+hr-backend   | GET /whatsapp/status 304 0.224 ms - -
+hr-backend   | GET /whatsapp/status 304 0.578 ms - -
+hr-backend   | GET /whatsapp/status 304 0.275 ms - -
+hr-backend   | GET /whatsapp/status 304 0.375 ms - -
+hr-backend   | GET /whatsapp/status 304 0.206 ms - -
+hr-backend   | --- WhatsApp: ✅ Downloaded: Arghya_Malakar_Resume_.pdf ---
+hr-backend   | GET /whatsapp/status 304 0.414 ms - -
+hr-backend   | GET /whatsapp/status 304 0.193 ms - -
+hr-backend   | --- WhatsApp: ✅ Downloaded: Ashish.pdf ---
+hr-backend   | --- WhatsApp: ✅ Downloaded: Anjan sahu Resume.pdf ---
+hr-backend   | --- [Phase 3] Processing Unified List (4 total) ---
+hr-backend   | --- [Process] Handling: 5_6287394206478508465.pdf (Gmail) ---
+hr-backend   | Starting AI matching...                                                             
+hr-backend   | GET /whatsapp/status 304 0.350 ms - -
+hr-backend   | GET /whatsapp/status 304 0.227 ms - -
+hr-backend   | GET /whatsapp/status 304 0.475 ms - -
+hr-backend   | GET /whatsapp/status 304 0.231 ms - -
+hr-backend   | GET /whatsapp/status 304 0.503 ms - -
+hr-backend   | GET /whatsapp/status 304 0.618 ms - -
+hr-backend   | GET /whatsapp/status 304 0.601 ms - -
+hr-backend   | GET /whatsapp/status 304 0.543 ms - -
+hr-backend   | GET /whatsapp/status 304 0.351 ms - -
+hr-backend   | GET /whatsapp/status 304 0.442 ms - -
+hr-backend   | GET /whatsapp/status 304 0.614 ms - -
+hr-backend   | GET /whatsapp/status 304 0.459 ms - -
+hr-backend   | GET /whatsapp/status 304 0.269 ms - -
+hr-ollama    | [GIN] 2026/04/24 - 17:59:22 | 200 |         1m17s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   | AI Matching Result: {
+hr-backend   |   name: 'RATAN SAHA',                                                               
+hr-backend   |   email: 'ratan.saha.dev@gmail.com',
+hr-backend   |   phone: '+91 98765 43210',
+hr-backend   |   experience_level: '1 year',
+hr-backend   |   score: 92,
+hr-backend   |   isMatch: true
+hr-backend   | }
+hr-backend   | --- [Database] Updated: RATAN SAHA ---                                              
+hr-backend   | --- [Process] Handling: Arghya_Malakar_Resume_.pdf (WhatsApp) ---
+hr-backend   | Starting AI matching...
+hr-backend   | GET /whatsapp/status 304 0.191 ms - -
+hr-backend   | GET /whatsapp/status 304 0.247 ms - -
+hr-backend   | GET /whatsapp/status 304 0.210 ms - -
+hr-backend   | GET /whatsapp/status 304 0.310 ms - -
+hr-backend   | GET /whatsapp/status 304 0.453 ms - -
+hr-backend   | GET /whatsapp/status 304 0.290 ms - -
+hr-postgres  | 2026-04-24 17:59:53.182 UTC [27] LOG:  checkpoint starting: time
+hr-postgres  | 2026-04-24 17:59:53.327 UTC [27] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.107 s, sync=0.014 s, total=0.146 s; sync files=3, longest=0.010 s, average=0.005 s; distance=7 kB, estimate=7 kB
+hr-backend   | GET /whatsapp/status 304 0.354 ms - -
+hr-backend   | GET /whatsapp/status 304 0.333 ms - -
+hr-backend   | GET /whatsapp/status 304 0.214 ms - -
+hr-backend   | GET /whatsapp/status 304 0.537 ms - -
+hr-backend   | GET /whatsapp/status 304 0.379 ms - -
+hr-backend   | GET /whatsapp/status 304 0.425 ms - -
+hr-backend   | AI Matching Result: {
+hr-ollama    | [GIN] 2026/04/24 - 18:01:00 | 200 |         1m37s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   |   name: 'ARGHYA MALAKAR',                                                           
+hr-backend   |   email: 'arghyaapply2016@gmail.com',                                               
+hr-backend   |   phone: '9641798561',
+hr-backend   |   experience_level: '0 (1 year of experience)',                                     
+hr-backend   |   score: 85,
+hr-backend   |   isMatch: true                                                                     
+hr-backend   | }                                                                                   
+hr-backend   | --- [Database] Saved New: ARGHYA MALAKAR ---
+hr-backend   | --- [Process] Handling: Ashish.pdf (WhatsApp) ---                                   
+hr-backend   | Starting AI matching...                                                             
+hr-backend   | GET /whatsapp/status 304 0.395 ms - -
+hr-backend   | GET /whatsapp/status 304 0.226 ms - -
+hr-backend   | AI Matching Result: {
+hr-ollama    | [GIN] 2026/04/24 - 18:02:25 | 200 |         1m24s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   |   email: 'ashishupadhyay0205@email.com',                                            
+hr-backend   |   phone: '+91 6388689074',                                                          
+hr-backend   |   experience_level: null,
+hr-backend   |   score: 80,                                                                        
+hr-backend   |   isMatch: true
+hr-backend   | }                                                                                   
+hr-backend   | --- [Database] Saved New: AASHISH UPADHYAY ---
+hr-backend   | --- [Process] Handling: Anjan sahu Resume.pdf (WhatsApp) ---                        
+hr-backend   | Starting AI matching...                                                             
+hr-backend   | GET /whatsapp/status 304 0.252 ms - -
+hr-ollama    | [GIN] 2026/04/24 - 18:03:37 | 200 |         1m12s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   | AI Matching Result: {
+hr-backend   |   name: 'ANJAN SAHU',                                                               
+hr-backend   |   email: 'anjansahu723@gmail.com',                                                  
+hr-backend   |   phone: '7985793941',
+hr-backend   |   experience_level: null,                                                           
+hr-backend   |   score: 10,
+hr-backend   |   isMatch: false                                                                    
+hr-backend   | }                                                                                   
+hr-backend   | Starting AI matching...
+hr-backend   | GET /whatsapp/status 304 0.247 ms - -                                               
+
+
+hr-backend   | AI Matching Result: {
+hr-ollama    | [GIN] 2026/04/24 - 18:04:47 | 200 |         1m10s |      172.19.0.5 | POST     "/api/generate"
+hr-backend   |   name: 'ANJAN SAHU',                                                               
+hr-backend   |   email: 'anjansahu723@gmail.com',                                                  
+hr-backend   |   phone: '7985793941',
+hr-backend   |   experience_level: null,                                                           
+hr-backend   |   score: 0,                                                                         
+hr-backend   |   isMatch: false
+hr-backend   | }                                                                                   
+hr-backend   | POST /candidates/scan 200 568485.673 ms - 37                                        
+hr-backend   | GET /candidates 200 15.495 ms - 41631  

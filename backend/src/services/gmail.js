@@ -1,5 +1,4 @@
 const { google } = require('googleapis');
-const pdf = require('pdf-parse');
 
 const getGmailService = (tokens) => {
   const oauth2Client = new google.auth.OAuth2(
@@ -38,15 +37,15 @@ const fetchEmails = async (tokens) => {
 };
 
 /**
- * Extracts attachments (PDFs) from a message.
+ * Extracts raw attachments (PDFs) from a message parts.
  */
 const getAttachments = async (tokens, messageId, parts) => {
   const gmail = getGmailService(tokens);
   const attachments = [];
 
   for (const part of parts) {
-    console.log(`Checking part: filename="${part.filename}", mimeType="${part.mimeType}"`);
     if (part.filename && part.filename.toLowerCase().endsWith('.pdf')) {
+      console.log(`--- Gmail: Collecting raw PDF: ${part.filename} ---`);
       const attachId = part.body.attachmentId;
       const response = await gmail.users.messages.attachments.get({
         userId: 'me',
@@ -54,11 +53,10 @@ const getAttachments = async (tokens, messageId, parts) => {
         id: attachId,
       });
 
-      const data = Buffer.from(response.data.data, 'base64');
-      const pdfData = await pdf(data);
+      // We return the raw base64 data to be processed centrally
       attachments.push({
         filename: part.filename,
-        text: pdfData.text
+        data: response.data.data // Raw base64 from Gmail API
       });
     } else if (part.parts) {
       const nested = await getAttachments(tokens, messageId, part.parts);
