@@ -110,9 +110,18 @@ router.post('/scan', async (req, res) => {
                  score = $1, 
                  date_applied = NOW(), 
                  resume_url = $2,
-                 applied_through = $3 
-                 WHERE id = $4`,
-                [matchResult.score, ikUrl, attachment.source, existing.rows[0].id]
+                 applied_through = $3,
+                 current_location = $4,
+                 current_ctc = $5
+                 WHERE id = $6`,
+                [
+                  matchResult.score, 
+                  ikUrl, 
+                  attachment.source, 
+                  matchResult.current_location || 'N/A', 
+                  matchResult.current_ctc || 'N/A',
+                  existing.rows[0].id
+                ]
               );
               console.log(`--- [Database] Updated: ${matchResult.name} ---`);
             } else {
@@ -120,8 +129,8 @@ router.post('/scan', async (req, res) => {
               const ikUrl = await uploadResume(attachment.data, attachment.filename);
 
               await pool.query(
-                `INSERT INTO candidates (name, email, phone, role_applied, resume_content, score, experience_level, status, resume_url, applied_through)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                `INSERT INTO candidates (name, email, phone, role_applied, resume_content, score, experience_level, status, resume_url, applied_through, current_location, current_ctc)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
                 [
                   matchResult.name || 'Unknown',
                   finalEmail,
@@ -132,7 +141,9 @@ router.post('/scan', async (req, res) => {
                   matchResult.experience_level || 'N/A',
                   'shortlisted',
                   ikUrl,
-                  attachment.source
+                  attachment.source,
+                  matchResult.current_location || 'N/A',
+                  matchResult.current_ctc || 'N/A'
                 ]
               );
               console.log(`--- [Database] Saved New: ${matchResult.name} ---`);

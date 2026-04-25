@@ -238,6 +238,8 @@ const Dashboard = ({ token, onLogout }) => {
                 <th>Name</th>
                 <th>Role</th>
                 <th>Mobile</th>
+                <th>Location</th>
+                <th>CTC</th>
                 <th>Experience</th>
                 <th>Score</th>
                 <th>Resume</th>
@@ -267,6 +269,14 @@ const Dashboard = ({ token, onLogout }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
                       <Phone size={12} opacity={0.5} /> {c.phone}
                     </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
+                      <MapPin size={12} opacity={0.5} /> {c.current_location}
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{c.current_ctc}</div>
                   </td>
                   <td>{c.experience_level}</td>
                   <td>
