@@ -33,29 +33,89 @@ const initWhatsApp = () => {
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: AUTH_PATH }),
+    authTimeoutMs: 60000,
+    webVersionCache: {
+      type: 'remote',
+      remotePath: 'https://raw.githubusercontent.com/wwebjs/web-nodejs/main/index.html',
+    },
     puppeteer: {
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
-      headless: true
+      headless: true,
+      protocolTimeout: 60000
     }
   });
 
   client.on('qr', (qr) => { status = 'qr'; qrcode.toDataURL(qr, (err, url) => { qrCodeData = url; }); });
-  client.on('ready', () => { status = 'ready'; console.log('--- WhatsApp: Client is READY ---'); });
-  client.on('authenticated', () => { if (status !== 'ready') status = 'authenticated'; });
+  
+  client.on('ready', () => { 
+    status = 'ready'; 
+    console.log('--- WhatsApp: Client is READY ---'); 
+  });
+
+  client.on('authenticated', () => { 
+    if (status !== 'ready') status = 'authenticated'; 
+    console.log('--- WhatsApp: Authenticated! Waiting for Ready... ---'); 
+    
+    // Nudge logic: If still not ready in 15s, try to force it
+    setTimeout(async () => {
+      if (status === 'authenticated') {
+        console.log('--- WhatsApp: Nudging the browser state... ---');
+        try {
+          const isReady = await client.getState();
+          if (isReady === 'CONNECTED') {
+            status = 'ready';
+            console.log('--- WhatsApp: Nudge Successful! Force-Ready ---');
+          }
+        } catch (e) { }
+      }
+    }, 15000);
+  });
+  client.on('loading_screen', (percent, message) => { console.log(`--- WhatsApp Loading: ${percent}% - ${message} ---`); });
+  client.on('change_state', (state) => { console.log('--- WhatsApp State Change:', state); });
   client.on('disconnected', () => { status = 'initializing'; initialized = false; setTimeout(() => initWhatsApp(), 5000); });
 
-  client.initialize().catch(err => { status = 'error'; });
+  client.initialize().catch(err => { 
+    console.error('--- WhatsApp Init Error ---', err);
+    status = 'error'; 
+  });
 };
 
 const getWhatsAppStatus = () => ({ status, qrCodeData });
 
 const getGroups = async () => {
-  if (status !== 'ready') return [];
+  if (status !== 'ready') {
+    console.log(`--- WhatsApp: Group fetch skipped (Status: ${status}) ---`);
+    return [];
+  }
+  
   try {
-    const chats = await client.getChats();
-    return chats.filter(chat => chat.isGroup).map(chat => ({ id: chat.id._serialized, name: chat.name }));
-  } catch (err) { return []; }
+    console.log('--- WhatsApp: Fetching groups... ---');
+    let chats = await client.getChats();
+    let groups = chats.filter(chat => chat.isGroup);
+    
+    // If no groups found, wait 3 seconds and try one more time
+    if (groups.length === 0) {
+      console.log('--- WhatsApp: No groups in memory, waiting 3s to retry... ---');
+      await new Promise(r => setTimeout(r, 3000));
+      chats = await client.getChats();
+      groups = chats.filter(chat => chat.isGroup);
+    }
+
+    console.log(`--- WhatsApp: Found ${groups.length} groups ---`);
+    return groups.map(chat => ({ id: chat.id._serialized, name: chat.name }));
+  } catch (err) {
+    console.error('--- WhatsApp Error Fetching Groups ---', err);
+    return [];
+  }
 };
 
 const fetchPDFsFromGroup = async (groupId) => {

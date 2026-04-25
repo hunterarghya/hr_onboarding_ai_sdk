@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 const OLLAMA_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-const MODEL = process.env.OLLAMA_MODEL || 'llama3';
+const MODEL = process.env.OLLAMA_MODEL || 'phi3';
 
 /**
  * Matches a resume against a job description using Ollama.
@@ -11,7 +11,7 @@ const MODEL = process.env.OLLAMA_MODEL || 'llama3';
  */
 const matchResume = async (resumeText, jobDescription) => {
   console.log('Starting AI matching...');
-  
+
   const prompt = `
     You are an expert HR recruiter. Compare the following resume text with the job description.
     
@@ -65,7 +65,7 @@ const matchResume = async (resumeText, jobDescription) => {
  */
 const analyzeEmail = async (emailSubject, emailBody) => {
   console.log('Analyzing email content...');
-  
+
   const prompt = `
     Identify if the following email is a job application.
     Subject: ${emailSubject}

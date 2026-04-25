@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, RefreshCw, LogOut } from 'lucide-react';
+import { Plus, Search, RefreshCw, LogOut, MessageCircle, Mail, MapPin, Phone, FileText, ExternalLink } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -234,12 +234,13 @@ const Dashboard = ({ token, onLogout }) => {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Role</th>
-                <th>Date Applied</th>
+                <th>Source</th>
                 <th>Name</th>
-                <th>Email</th>
+                <th>Role</th>
+                <th>Mobile</th>
                 <th>Experience</th>
                 <th>Score</th>
+                <th>Resume</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -247,13 +248,53 @@ const Dashboard = ({ token, onLogout }) => {
               {candidates.map(c => (
                 <tr key={c.id}>
                   <td>{c.id}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {c.applied_through === 'WhatsApp' ? (
+                        <span title="WhatsApp" style={{ color: '#10b981', display: 'flex' }}><MessageCircle size={16} /></span>
+                      ) : (
+                        <span title="Gmail" style={{ color: '#ef4444', display: 'flex' }}><Mail size={16} /></span>
+                      )}
+                      <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{c.applied_through}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: '600' }}>{c.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div>
+                  </td>
                   <td>{c.role_applied}</td>
-                  <td>{new Date(c.date_applied).toLocaleDateString()}</td>
-                  <td>{c.name}</td>
-                  <td>{c.email}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
+                      <Phone size={12} opacity={0.5} /> {c.phone}
+                    </div>
+                  </td>
                   <td>{c.experience_level}</td>
                   <td>
-                    <span style={{ color: c.score >= 80 ? '#10b981' : '#f59e0b' }}>{c.score}%</span>
+                    <span style={{ 
+                      padding: '0.25rem 0.5rem', 
+                      borderRadius: '1rem', 
+                      background: c.score >= 80 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                      color: c.score >= 80 ? '#10b981' : '#f59e0b',
+                      fontSize: '0.875rem',
+                      fontWeight: '600'
+                    }}>
+                      {c.score}%
+                    </span>
+                  </td>
+                  <td>
+                    {c.resume_url ? (
+                      <a 
+                        href={c.resume_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn-primary"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <FileText size={14} /> PDF <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>No PDF</span>
+                    )}
                   </td>
                   <td>
                     <span className="badge badge-success">{c.status}</span>

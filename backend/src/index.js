@@ -51,7 +51,11 @@ const initDb = async () => {
         resume_content TEXT,
         score INTEGER,
         experience_level VARCHAR(100),
-        status VARCHAR(50) DEFAULT 'shortlisted'
+        status VARCHAR(50) DEFAULT 'shortlisted',
+        resume_url TEXT,
+        applied_through VARCHAR(50),
+        current_location VARCHAR(255),
+        current_ctc VARCHAR(100)
       );
     `);
     console.log('Database tables initialized');

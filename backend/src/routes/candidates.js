@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const { fetchEmails, getAttachments } = require('../services/gmail');
 const { fetchPDFsFromGroup, getWhatsAppStatus } = require('../services/whatsapp');
 const { analyzeEmail, matchResume } = require('../services/ai');
+const { uploadResume } = require('../services/imagekit');
 const jwt = require('jsonwebtoken');
 const pdf = require('pdf-parse');
 
@@ -101,15 +102,26 @@ router.post('/scan', async (req, res) => {
             const existing = await pool.query('SELECT id FROM candidates WHERE email = $1 AND role_applied = $2', [finalEmail, role.role]);
             
             if (existing.rows.length > 0) {
+              // Upload new resume version to ImageKit
+              const ikUrl = await uploadResume(attachment.data, attachment.filename);
+              
               await pool.query(
-                `UPDATE candidates SET score = $1, date_applied = NOW() WHERE id = $2`,
-                [matchResult.score, existing.rows[0].id]
+                `UPDATE candidates SET 
+                 score = $1, 
+                 date_applied = NOW(), 
+                 resume_url = $2,
+                 applied_through = $3 
+                 WHERE id = $4`,
+                [matchResult.score, ikUrl, attachment.source, existing.rows[0].id]
               );
               console.log(`--- [Database] Updated: ${matchResult.name} ---`);
             } else {
+              // Upload to ImageKit
+              const ikUrl = await uploadResume(attachment.data, attachment.filename);
+
               await pool.query(
-                `INSERT INTO candidates (name, email, phone, role_applied, resume_content, score, experience_level, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                `INSERT INTO candidates (name, email, phone, role_applied, resume_content, score, experience_level, status, resume_url, applied_through)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                 [
                   matchResult.name || 'Unknown',
                   finalEmail,
@@ -118,7 +130,9 @@ router.post('/scan', async (req, res) => {
                   resumeText.substring(0, 2000),
                   matchResult.score,
                   matchResult.experience_level || 'N/A',
-                  'shortlisted'
+                  'shortlisted',
+                  ikUrl,
+                  attachment.source
                 ]
               );
               console.log(`--- [Database] Saved New: ${matchResult.name} ---`);
