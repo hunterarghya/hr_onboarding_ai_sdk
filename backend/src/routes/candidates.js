@@ -29,7 +29,7 @@ router.post('/scan', async (req, res) => {
   const { whatsappGroupId } = req.body;
   const tokens = userData.tokens;
   isScanning = true;
-  
+
   console.log(`--- [Pipeline] Starting Global Scan for ${userData.email} ---`);
   const allAttachments = [];
 
@@ -53,8 +53,8 @@ router.post('/scan', async (req, res) => {
         if (analysis.isApplication) {
           console.log(`--- [Gmail] ✅ Application Found: "${subject}" ---`);
           const gmailAttachments = await getAttachments(tokens, email.id, payload.parts);
-          allAttachments.push(...gmailAttachments.map(a => ({ 
-            ...a, source: 'Gmail', sender: senderEmail 
+          allAttachments.push(...gmailAttachments.map(a => ({
+            ...a, source: 'Gmail', sender: senderEmail
           })));
         }
       }
@@ -85,7 +85,7 @@ router.post('/scan', async (req, res) => {
     for (const attachment of allAttachments) {
       try {
         console.log(`--- [Process] Handling: ${attachment.filename} (${attachment.source}) ---`);
-        
+
         const pdfBuffer = Buffer.from(attachment.data, 'base64');
         const pdfParsed = await pdf(pdfBuffer);
         const resumeText = pdfParsed.text;
@@ -94,17 +94,18 @@ router.post('/scan', async (req, res) => {
 
         for (const role of jobRoles) {
           const matchResult = await matchResume(resumeText, `Role: ${role.role}, Skills: ${role.skills}, Experience: ${role.experience}`);
-          
-          if (matchResult.isMatch && matchResult.score >= 60) {
+          const minScoreRequired = role.min_score || 60;
+
+          if (matchResult && matchResult.score >= minScoreRequired) {
             const finalEmail = (matchResult.email && matchResult.email !== 'null') ? matchResult.email : (attachment.sender || 'N/A');
-            
+
             // Check if candidate exists to avoid duplication
             const existing = await pool.query('SELECT id FROM candidates WHERE email = $1 AND role_applied = $2', [finalEmail, role.role]);
-            
+
             if (existing.rows.length > 0) {
               // Upload new resume version to ImageKit
               const ikUrl = await uploadResume(attachment.data, attachment.filename);
-              
+
               await pool.query(
                 `UPDATE candidates SET 
                  score = $1, 
@@ -115,10 +116,10 @@ router.post('/scan', async (req, res) => {
                  current_ctc = $5
                  WHERE id = $6`,
                 [
-                  matchResult.score, 
-                  ikUrl, 
-                  attachment.source, 
-                  matchResult.current_location || 'N/A', 
+                  matchResult.score,
+                  ikUrl,
+                  attachment.source,
+                  matchResult.current_location || 'N/A',
                   matchResult.current_ctc || 'N/A',
                   existing.rows[0].id
                 ]
@@ -149,7 +150,7 @@ router.post('/scan', async (req, res) => {
               console.log(`--- [Database] Saved New: ${matchResult.name} ---`);
             }
             candidatesFound++;
-            break; 
+            break;
           }
         }
       } catch (procErr) {

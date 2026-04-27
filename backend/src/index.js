@@ -38,6 +38,9 @@ const initDb = async () => {
         skills TEXT,
         experience VARCHAR(100),
         location VARCHAR(255),
+        shortlist_mode VARCHAR(20) DEFAULT 'manual',
+        deadline TIMESTAMP,
+        min_score INTEGER DEFAULT 60,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 

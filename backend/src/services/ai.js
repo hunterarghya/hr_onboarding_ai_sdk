@@ -22,23 +22,21 @@ const matchResume = async (resumeText, jobDescription) => {
     ${resumeText}
     
     Extract the candidate's name, email, and phone number from the resume.
-    If any field is not found, return an empty string or null, NOT the word "string".
+    If any field is not found, use the exact string "N/A".
     
     Tasks:
     1. Extract candidate name, email, phone, experience level, current location, and current CTC/Salary.
     2. Score the match between the resume and the job description (0-100).
-    3. Determine if the match score is 60 or above.
     
     Return ONLY a JSON object in the following format:
     {
-      "name": "Full Name or null",
-      "email": "email@example.com or null",
-      "phone": "Phone number or null",
-      "experience_level": "e.g. 5 years or null",
-      "current_location": "City, Country or null",
-      "current_ctc": "Salary info or null",
-      "score": number,
-      "isMatch": boolean
+      "name": "Full Name",
+      "email": "Email Address",
+      "phone": "Phone Number",
+      "experience_level": "Experience Info",
+      "current_location": "Location Info",
+      "current_ctc": "CTC Info",
+      "score": 0
     }
   `;
 
