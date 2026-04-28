@@ -9,24 +9,22 @@ const MODEL = process.env.OLLAMA_MODEL || 'phi3';
  * @param {string} jobDescription 
  * @returns {Promise<{isMatch: boolean, score: number, extractedData: object}>}
  */
-const matchResume = async (resumeText, jobDescription) => {
-  console.log('Starting AI matching...');
+const matchResume = async (resumeText, activeRolesList) => {
+  console.log('Starting AI matching (One-Pass)...');
 
   const prompt = `
-    You are an expert HR recruiter. Compare the following resume text with the job description.
+    You are an expert HR recruiter.
     
-    Job Description:
-    ${jobDescription}
+    Here is a list of active job roles we are hiring for:
+    ${activeRolesList}
     
     Resume Text:
     ${resumeText}
     
-    Extract the candidate's name, email, and phone number from the resume.
-    If any field is not found, use the exact string "N/A".
-    
     Tasks:
-    1. Extract candidate name, email, phone, experience level, current location, and current CTC/Salary.
-    2. Score the match between the resume and the job description (0-100).
+    1. Extract candidate name, email, phone, experience level, current location, and current CTC/Salary. If any field is not found, use the exact string "N/A". Keep all answers extremely short (max 5 words per field). Do not explain your reasoning.
+    2. Determine which active job role from the list above this candidate is most likely applying for. If they don't fit any of the listed roles, assign them to the exact role name "Open". Return ONLY the exact role name, with no additional text or explanation.
+    3. Score the match between the resume and the chosen job role (0-100).
     
     Return ONLY a JSON object in the following format:
     {
@@ -36,6 +34,7 @@ const matchResume = async (resumeText, jobDescription) => {
       "experience_level": "Experience Info",
       "current_location": "Location Info",
       "current_ctc": "CTC Info",
+      "target_role": "Exact Role Name or 'Open'",
       "score": 0
     }
   `;
