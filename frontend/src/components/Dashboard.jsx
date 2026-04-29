@@ -11,7 +11,7 @@ const Dashboard = ({ token, onLogout }) => {
   const [scanning, setScanning] = useState(false);
   const [waStatus, setWaStatus] = useState({ status: 'not connected', qrCodeData: null });
   const [waGroups, setWaGroups] = useState([]);
-  const [selectedGroup, setSelectedGroup] = useState('');
+  const [selectedGroups, setSelectedGroups] = useState([]);
   const [showQR, setShowQR] = useState(false);
   const [viewingJob, setViewingJob] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
@@ -127,7 +127,7 @@ const Dashboard = ({ token, onLogout }) => {
     setScanning(true);
     try {
       const response = await axios.post(`${API_URL}/candidates/scan`, {
-        whatsappGroupId: selectedGroup
+        whatsappGroupIds: selectedGroups
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -171,7 +171,13 @@ const Dashboard = ({ token, onLogout }) => {
     }
   };
 
-  const isScanDisabled = scanning || (selectedGroup && waStatus.status !== 'ready');
+  const toggleGroup = (groupId) => {
+    setSelectedGroups(prev =>
+      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
+    );
+  };
+
+  const isScanDisabled = scanning || (selectedGroups.length > 0 && waStatus.status !== 'ready');
 
   return (
     <div className="container">
@@ -197,14 +203,23 @@ const Dashboard = ({ token, onLogout }) => {
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {waStatus.status === 'ready' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <select
-                value={selectedGroup}
-                onChange={e => setSelectedGroup(e.target.value)}
-                style={{ width: '200px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
-              >
-                <option value="">No WhatsApp Group</option>
-                {waGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
+              <div style={{ position: 'relative' }}>
+                <div
+                  style={{ width: '220px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)', fontSize: '0.85rem', cursor: 'pointer', minHeight: '36px' }}
+                  onClick={(e) => { e.currentTarget.nextSibling.style.display = e.currentTarget.nextSibling.style.display === 'block' ? 'none' : 'block'; }}
+                >
+                  {selectedGroups.length === 0 ? 'Select Groups...' : `${selectedGroups.length} group(s) selected`}
+                </div>
+                <div style={{ display: 'none', position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '0.5rem', zIndex: 50, maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
+                  {waGroups.map(g => (
+                    <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <input type="checkbox" checked={selectedGroups.includes(g.id)} onChange={() => toggleGroup(g.id)} />
+                      {g.name}
+                    </label>
+                  ))}
+                  {waGroups.length === 0 && <div style={{ padding: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>No groups found</div>}
+                </div>
+              </div>
               <button onClick={fetchWAGroups} title="Refresh Groups" style={{ padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(255,255,255,0.1)' }}>
                 <RefreshCw size={16} />
               </button>

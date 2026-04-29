@@ -146,6 +146,7 @@ const toScore = (similarity) => {
  */
 const matchResumeToJobs = async (resumeText, sections, jobRoles) => {
   try {
+    console.log('--- [Vector] Starting Match Process ---');
     // 1. Embed the full resume
     const resumeVec = await embed(resumeText);
 
@@ -157,8 +158,14 @@ const matchResumeToJobs = async (resumeText, sections, jobRoles) => {
     });
 
     if (!searchResult || searchResult.length === 0) {
+      console.log('--- [Vector] No matching job descriptions found in Qdrant. ---');
       return { target_role: 'Open', score: 0 };
     }
+
+    console.log('--- [Vector] Top 3 Semantic Matches: ---');
+    searchResult.forEach((res, i) => {
+      console.log(`      ${i + 1}. ${res.payload.role} (Score: ${toScore(res.score)}%)`);
+    });
 
     const topMatch = searchResult[0];
     const topScore = topMatch.score; // Raw cosine similarity
@@ -166,11 +173,14 @@ const matchResumeToJobs = async (resumeText, sections, jobRoles) => {
     // 3. Check if the top match is strong enough to be a real match
     //    If even the best match is below 0.55, it's an "Open" candidate
     if (topScore < 0.55) {
+      console.log(`--- [Vector] Top score ${toScore(topScore)}% is below 55%. Assigning to "Open". ---`);
       return { target_role: 'Open', score: toScore(topScore) };
     }
 
     const targetRole = topMatch.payload.role;
     const jobId = topMatch.id;
+
+    console.log(`--- [Vector] Selected Candidate Role: ${targetRole} ---`);
 
     // 4. Find the job in the Postgres data for criteria_weights
     const job = jobRoles.find(j => j.id === jobId);
@@ -180,6 +190,9 @@ const matchResumeToJobs = async (resumeText, sections, jobRoles) => {
 
     // 5. If criteria_weights are specified, compute weighted score
     if (criteriaWeights && Object.keys(criteriaWeights).length > 0) {
+      console.log(`--- [Vector] Computing Weighted Score for ${targetRole} ---`);
+      console.log(`      Weights: ${JSON.stringify(criteriaWeights)}`);
+      
       // Embed resume sections
       const sectionEmbeddings = {};
 
@@ -207,13 +220,15 @@ const matchResumeToJobs = async (resumeText, sections, jobRoles) => {
         // Skills similarity
         if (criteriaWeights.skills !== undefined && sectionEmbeddings.skills) {
           const sim = cosineSimilarity(sectionEmbeddings.skills, jobVectors.skills);
+          console.log(`      -> Skills Similarity: ${toScore(sim)}% (Weight: ${criteriaWeights.skills})`);
           weightedSum += criteriaWeights.skills * sim;
           totalWeight += criteriaWeights.skills;
         }
 
-        // Projects similarity (compare against full JD since we don't have a separate projects vector)
+        // Projects similarity
         if (criteriaWeights.projects !== undefined && sectionEmbeddings.projects) {
           const sim = cosineSimilarity(sectionEmbeddings.projects, jobVectors.full);
+          console.log(`      -> Projects Similarity: ${toScore(sim)}% (Weight: ${criteriaWeights.projects})`);
           weightedSum += criteriaWeights.projects * sim;
           totalWeight += criteriaWeights.projects;
         }
@@ -221,23 +236,26 @@ const matchResumeToJobs = async (resumeText, sections, jobRoles) => {
         // Experience similarity
         if (criteriaWeights.experience !== undefined && sectionEmbeddings.experience) {
           const sim = cosineSimilarity(sectionEmbeddings.experience, jobVectors.experience);
+          console.log(`      -> Experience Similarity: ${toScore(sim)}% (Weight: ${criteriaWeights.experience})`);
           weightedSum += criteriaWeights.experience * sim;
           totalWeight += criteriaWeights.experience;
         }
 
-        // If we got at least one weighted component, use the weighted score
         if (totalWeight > 0) {
           const weightedSimilarity = weightedSum / totalWeight;
           finalScore = toScore(weightedSimilarity);
+          console.log(`      -> Final Weighted Score: ${finalScore}%`);
         } else {
           finalScore = toScore(topScore);
+          console.log(`      -> No section matches found, falling back to Full Score: ${finalScore}%`);
         }
       } else {
         finalScore = toScore(topScore);
+        console.log(`      -> Job vectors not found in Qdrant, falling back to Full Score: ${finalScore}%`);
       }
     } else {
-      // No criteria weights — just use the raw full similarity
       finalScore = toScore(topScore);
+      console.log(`--- [Vector] No criteria weights for ${targetRole}. Using Full Score: ${finalScore}% ---`);
     }
 
     return { target_role: targetRole, score: finalScore };

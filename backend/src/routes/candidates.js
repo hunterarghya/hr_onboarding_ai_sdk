@@ -14,6 +14,31 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 let isScanning = false;
 
+// ---- Timestamp Helpers ----
+
+const getLastScanTimestamp = async (sourceType, sourceId = 'default') => {
+  const result = await pool.query(
+    'SELECT last_scanned_at FROM scan_timestamps WHERE source_type = $1 AND source_id = $2',
+    [sourceType, sourceId]
+  );
+  if (result.rows.length > 0) {
+    return new Date(result.rows[0].last_scanned_at);
+  }
+  return null; // First scan ever — no filter
+};
+
+const updateLastScanTimestamp = async (sourceType, sourceId = 'default', timestamp = new Date()) => {
+  await pool.query(
+    `INSERT INTO scan_timestamps (source_type, source_id, last_scanned_at)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (source_type, source_id)
+     DO UPDATE SET last_scanned_at = $3`,
+    [sourceType, sourceId, timestamp]
+  );
+};
+
+// ---- Scan Route ----
+
 router.post('/scan', async (req, res) => {
   if (isScanning) return res.status(409).json({ message: 'Scan already in progress' });
 
@@ -28,7 +53,9 @@ router.post('/scan', async (req, res) => {
     return res.status(403).json({ message: 'Invalid token' });
   }
 
-  const { whatsappGroupId } = req.body;
+  // Accept multiple group IDs (array) or single (string, backward compatible)
+  const { whatsappGroupIds, whatsappGroupId } = req.body;
+  const groupIds = whatsappGroupIds || (whatsappGroupId ? [whatsappGroupId] : []);
   const tokens = userData.tokens;
   isScanning = true;
 
@@ -39,10 +66,17 @@ router.post('/scan', async (req, res) => {
     const jobRolesResult = await pool.query('SELECT * FROM job_roles');
     const jobRoles = jobRolesResult.rows;
 
-    // --- 1. Gmail Phase ---
+    // --- 1. Gmail Phase (timestamp-filtered) ---
     try {
       console.log('--- [Phase 1] Gmail Scanning ---');
-      const emails = await fetchEmails(tokens);
+      let gmailLastScan = await getLastScanTimestamp('gmail');
+      if (!gmailLastScan) {
+        // First scan ever — only look at yesterday and today, not the entire mailbox
+        gmailLastScan = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      }
+      console.log(`--- [Gmail] Scanning emails after: ${gmailLastScan.toISOString()} ---`);
+
+      const emails = await fetchEmails(tokens, gmailLastScan);
       for (const email of emails) {
         const payload = email.payload;
         if (!payload || !payload.parts) continue;
@@ -60,20 +94,32 @@ router.post('/scan', async (req, res) => {
           })));
         }
       }
+
+      // Update Gmail timestamp to NOW
+      await updateLastScanTimestamp('gmail');
+      console.log('--- [Gmail] Timestamp updated ---');
     } catch (gmailErr) {
       console.error('--- [Phase 1] Gmail Error ---', gmailErr);
     }
 
-    // --- 2. WhatsApp Phase ---
-    if (whatsappGroupId) {
-      console.log('--- [Phase 2] WhatsApp Scanning ---');
+    // --- 2. WhatsApp Phase (multi-group, timestamp-filtered) ---
+    if (groupIds.length > 0) {
+      console.log(`--- [Phase 2] WhatsApp Scanning (${groupIds.length} group(s)) ---`);
       const waStatus = getWhatsAppStatus();
       if (waStatus.status === 'ready') {
-        try {
-          const waAttachments = await fetchPDFsFromGroup(whatsappGroupId);
-          allAttachments.push(...waAttachments);
-        } catch (waErr) {
-          console.error('--- [Phase 2] WhatsApp Error ---', waErr);
+        for (const gid of groupIds) {
+          try {
+            const waLastScan = await getLastScanTimestamp('whatsapp', gid);
+            console.log(`--- [WhatsApp] Group ${gid} last scan: ${waLastScan ? waLastScan.toISOString() : 'NEVER'} ---`);
+
+            const waAttachments = await fetchPDFsFromGroup(gid, waLastScan);
+            allAttachments.push(...waAttachments);
+
+            // Update this group's timestamp to NOW
+            await updateLastScanTimestamp('whatsapp', gid);
+          } catch (waErr) {
+            console.error(`--- [Phase 2] WhatsApp Error (group ${gid}) ---`, waErr);
+          }
         }
       } else {
         console.log(`--- [WhatsApp] Skipping: Status is ${waStatus.status} ---`);
@@ -117,9 +163,6 @@ router.post('/scan', async (req, res) => {
         const isAuto = targetRole.shortlist_mode === 'auto';
 
         // Step D: Auto/Manual Junction
-        //   Manual → always store with 'applied'
-        //   Auto + score >= min → store with 'shortlisted'
-        //   Auto + score < min → skip
         if (targetRole.shortlist_mode === 'manual' || (isAuto && score >= minScoreRequired)) {
           const finalEmail = (parsed.email && parsed.email !== 'N/A') ? parsed.email : (attachment.sender || 'N/A');
           const finalStatus = targetRole.shortlist_mode === 'manual' ? 'applied' : 'shortlisted';
@@ -135,48 +178,17 @@ router.post('/scan', async (req, res) => {
 
           if (existing.rows.length > 0) {
             const ikUrl = await uploadResume(attachment.data, attachment.filename);
-
             await pool.query(
-              `UPDATE candidates SET 
-               score = $1, 
-               date_applied = NOW(), 
-               resume_url = $2,
-               applied_through = $3,
-               current_location = $4,
-               current_ctc = $5,
-               status = $6
-               WHERE id = $7`,
-              [
-                score,
-                ikUrl,
-                attachment.source,
-                safeLocation,
-                safeCtc,
-                finalStatus,
-                existing.rows[0].id
-              ]
+              `UPDATE candidates SET score = $1, date_applied = NOW(), resume_url = $2, applied_through = $3, current_location = $4, current_ctc = $5, status = $6 WHERE id = $7`,
+              [score, ikUrl, attachment.source, safeLocation, safeCtc, finalStatus, existing.rows[0].id]
             );
             console.log(`--- [Database] Updated: ${safeName} under ${targetRole.role} ---`);
           } else {
             const ikUrl = await uploadResume(attachment.data, attachment.filename);
-
             await pool.query(
               `INSERT INTO candidates (name, email, phone, role_applied, resume_content, score, experience_level, status, resume_url, applied_through, current_location, current_ctc)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-              [
-                safeName,
-                finalEmail,
-                safePhone,
-                targetRole.role,
-                resumeText.substring(0, 2000),
-                score,
-                safeExperience,
-                finalStatus,
-                ikUrl,
-                attachment.source,
-                safeLocation,
-                safeCtc
-              ]
+              [safeName, finalEmail, safePhone, targetRole.role, resumeText.substring(0, 2000), score, safeExperience, finalStatus, ikUrl, attachment.source, safeLocation, safeCtc]
             );
             console.log(`--- [Database] Saved New: ${safeName} under ${targetRole.role} ---`);
           }
@@ -201,7 +213,6 @@ router.post('/scan', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    // Fixed: column name is date_applied, not created_at
     const result = await pool.query('SELECT * FROM candidates ORDER BY date_applied DESC');
     res.json(result.rows);
   } catch (err) {

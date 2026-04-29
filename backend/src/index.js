@@ -62,6 +62,14 @@ const initDb = async () => {
         current_location VARCHAR(255),
         current_ctc VARCHAR(100)
       );
+
+      CREATE TABLE IF NOT EXISTS scan_timestamps (
+        id SERIAL PRIMARY KEY,
+        source_type VARCHAR(20) NOT NULL,
+        source_id VARCHAR(255) NOT NULL DEFAULT 'default',
+        last_scanned_at TIMESTAMP NOT NULL DEFAULT '1970-01-01',
+        UNIQUE(source_type, source_id)
+      );
     `);
     console.log('Database tables initialized');
 

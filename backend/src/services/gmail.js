@@ -11,18 +11,31 @@ const getGmailService = (tokens) => {
 };
 
 /**
- * Fetches the top 10 emails from the inbox.
+ * Fetches emails from the inbox, optionally only those after a given date.
+ * @param {object} tokens - OAuth tokens
+ * @param {Date|null} sinceDate - If provided, only fetch emails after this timestamp
  */
-const fetchEmails = async (tokens) => {
-  console.log('Fetching top 10 emails from Gmail...');
+const fetchEmails = async (tokens, sinceDate = null) => {
   const gmail = getGmailService(tokens);
-  
+
+  // Build Gmail search query
+  const queryParts = ['has:attachment'];
+  if (sinceDate) {
+    const epochSeconds = Math.floor(sinceDate.getTime() / 1000);
+    queryParts.push(`after:${epochSeconds}`);
+  }
+  const q = queryParts.join(' ');
+
+  console.log(`--- [Gmail] Fetching emails with query: "${q}" ---`);
+
   const response = await gmail.users.messages.list({
     userId: 'me',
-    maxResults: 10,
+    maxResults: 50,
+    q: q,
   });
 
   const messages = response.data.messages || [];
+  console.log(`--- [Gmail] Found ${messages.length} matching emails ---`);
   const fullMessages = [];
 
   for (const message of messages) {

@@ -118,12 +118,11 @@ const getGroups = async () => {
   }
 };
 
-const fetchPDFsFromGroup = async (groupId) => {
+const fetchPDFsFromGroup = async (groupId, sinceDate = null) => {
   if (status !== 'ready') return [];
   console.log(`--- WhatsApp: Scanning Group ${groupId} (Doc-Based) ---`);
   
   try {
-    // STRICTLY ACCORDING TO DOCUMENTATION
     const chat = await client.getChatById(groupId);
     console.log(`--- WhatsApp: Fetching messages for ${chat.name} ---`);
     
@@ -133,21 +132,25 @@ const fetchPDFsFromGroup = async (groupId) => {
     const attachments = [];
 
     for (const msg of messages) {
-      // Documentation: "You can detect which messages have attached media by checking its hasMedia property"
+      // Skip messages older than sinceDate
+      if (sinceDate) {
+        const msgDate = new Date(msg.timestamp * 1000);
+        if (msgDate <= sinceDate) continue;
+      }
+
       if (msg.hasMedia) {
-        // Documentation: "Actually download the data by using downloadMedia method"
         try {
           const media = await msg.downloadMedia();
           
           if (media && media.data) {
-             // We only want PDFs for this specific HR application
              if (media.mimetype === 'application/pdf' || (media.filename && media.filename.toLowerCase().endsWith('.pdf'))) {
                 console.log(`--- WhatsApp: ✅ Downloaded: ${media.filename || 'PDF'} ---`);
                 attachments.push({
                   filename: media.filename || 'resume.pdf',
                   data: media.data,
                   sender: msg.author || msg.from,
-                  source: 'WhatsApp'
+                  source: 'WhatsApp',
+                  timestamp: new Date(msg.timestamp * 1000),
                 });
              }
           }
@@ -157,6 +160,7 @@ const fetchPDFsFromGroup = async (groupId) => {
       }
     }
 
+    console.log(`--- WhatsApp: ${attachments.length} new PDFs from ${chat.name} ---`);
     return attachments;
   } catch (err) {
     console.error('--- WhatsApp Global Error ---', err);
