@@ -125,26 +125,19 @@ const removeJobDescription = async (jobId) => {
 // ---- Scoring ----
 
 /**
- * Normalize a raw cosine similarity to a 0-100 score.
- * Uses a floor threshold approach:
- *   Below 0.55 = 0 (reject zone)
- *   0.55 to 0.95 = 0–100 (usable zone)
- *   Above 0.95 = 100
+ * Convert raw cosine similarity to a 0-100 score.
+ * Simply multiplies by 100 and clamps.
  *
  * @param {number} similarity - Raw cosine similarity (0 to 1)
- * @returns {number} Normalized score (0 to 100)
+ * @returns {number} Score (0 to 100)
  */
-const normalizeScore = (similarity) => {
-  const FLOOR = 0.55;
-  const CEILING = 0.95;
-  if (similarity <= FLOOR) return 0;
-  if (similarity >= CEILING) return 100;
-  return Math.round(((similarity - FLOOR) / (CEILING - FLOOR)) * 100);
+const toScore = (similarity) => {
+  return Math.round(Math.min(100, Math.max(0, similarity * 100)));
 };
 
 /**
  * Match a resume against all stored job descriptions.
- * Returns the best matching role and a normalized score.
+ * Returns the best matching role and a score (similarity * 100).
  *
  * @param {string} resumeText - Full raw resume text
  * @param {object} sections - {skills, projects, experience} from resumeParser
@@ -173,7 +166,7 @@ const matchResumeToJobs = async (resumeText, sections, jobRoles) => {
     // 3. Check if the top match is strong enough to be a real match
     //    If even the best match is below 0.55, it's an "Open" candidate
     if (topScore < 0.55) {
-      return { target_role: 'Open', score: normalizeScore(topScore) };
+      return { target_role: 'Open', score: toScore(topScore) };
     }
 
     const targetRole = topMatch.payload.role;
@@ -235,16 +228,16 @@ const matchResumeToJobs = async (resumeText, sections, jobRoles) => {
         // If we got at least one weighted component, use the weighted score
         if (totalWeight > 0) {
           const weightedSimilarity = weightedSum / totalWeight;
-          finalScore = normalizeScore(weightedSimilarity);
+          finalScore = toScore(weightedSimilarity);
         } else {
-          finalScore = normalizeScore(topScore);
+          finalScore = toScore(topScore);
         }
       } else {
-        finalScore = normalizeScore(topScore);
+        finalScore = toScore(topScore);
       }
     } else {
       // No criteria weights — just use the raw full similarity
-      finalScore = normalizeScore(topScore);
+      finalScore = toScore(topScore);
     }
 
     return { target_role: targetRole, score: finalScore };
@@ -278,5 +271,4 @@ module.exports = {
   removeJobDescription,
   matchResumeToJobs,
   embed,
-  normalizeScore,
 };
