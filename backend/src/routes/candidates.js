@@ -3,8 +3,10 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { fetchEmails, getAttachments } = require('../services/gmail');
 const { fetchPDFsFromGroup, getWhatsAppStatus } = require('../services/whatsapp');
-const { analyzeEmail, matchResume } = require('../services/ai');
+const { analyzeEmail } = require('../services/ai');
 const { uploadResume } = require('../services/imagekit');
+const { parseResume } = require('../services/resumeParser');
+const { matchResumeToJobs } = require('../services/vectorMatch');
 const jwt = require('jsonwebtoken');
 const pdf = require('pdf-parse');
 
@@ -78,7 +80,7 @@ router.post('/scan', async (req, res) => {
       }
     }
 
-    // --- 3. Unified Processing Phase ---
+    // --- 3. Unified Processing Phase (Vector Matching) ---
     console.log(`--- [Phase 3] Processing Unified List (${allAttachments.length} total) ---`);
     let candidatesFound = 0;
 
@@ -92,18 +94,17 @@ router.post('/scan', async (req, res) => {
 
         if (!resumeText || resumeText.length < 50) continue;
 
-        const activeRolesList = jobRoles.map(r => `Role Name: ${r.role}\nSkills: ${r.skills}\nExperience: ${r.experience}`).join('\n\n---\n\n');
+        // Step A: Deterministic extraction (regex, zero LLM)
+        const parsed = parseResume(resumeText);
+        console.log(`--- [Parser] Extracted: ${parsed.name}, ${parsed.email}, ${parsed.phone} ---`);
 
-        const matchResult = await matchResume(resumeText, activeRolesList);
+        // Step B: Vector matching — find best job role + score (zero LLM)
+        const { target_role, score } = await matchResumeToJobs(resumeText, parsed.sections, jobRoles);
+        console.log(`--- [Vector] Match: ${target_role} (score: ${score}) ---`);
 
-        // Defensively clean AI output
-        const safeTargetRole = (matchResult.target_role || 'Open').substring(0, 250);
-        const safeExperience = (matchResult.experience_level || 'N/A').substring(0, 95);
-        const safeLocation = (matchResult.current_location || 'N/A').substring(0, 250);
-        const safeCtc = (matchResult.current_ctc || 'N/A').substring(0, 95);
+        // Step C: Look up the target role in the database
+        let targetRole = jobRoles.find(r => r.role === target_role);
 
-        let targetRole = jobRoles.find(r => r.role === safeTargetRole);
-        
         if (!targetRole) {
           targetRole = {
             role: 'Open',
@@ -114,16 +115,27 @@ router.post('/scan', async (req, res) => {
 
         const minScoreRequired = targetRole.min_score || 60;
         const isAuto = targetRole.shortlist_mode === 'auto';
-        
-        if (targetRole.shortlist_mode === 'manual' || (isAuto && matchResult && matchResult.score >= minScoreRequired)) {
-          const finalEmail = (matchResult.email && matchResult.email !== 'null' && matchResult.email !== 'N/A') ? matchResult.email : (attachment.sender || 'N/A');
+
+        // Step D: Auto/Manual Junction
+        //   Manual → always store with 'applied'
+        //   Auto + score >= min → store with 'shortlisted'
+        //   Auto + score < min → skip
+        if (targetRole.shortlist_mode === 'manual' || (isAuto && score >= minScoreRequired)) {
+          const finalEmail = (parsed.email && parsed.email !== 'N/A') ? parsed.email : (attachment.sender || 'N/A');
           const finalStatus = targetRole.shortlist_mode === 'manual' ? 'applied' : 'shortlisted';
-          
+
+          // Defensive truncation
+          const safeName = (parsed.name || 'Unknown').substring(0, 250);
+          const safePhone = (parsed.phone || 'N/A').substring(0, 45);
+          const safeExperience = (parsed.experience_level || 'N/A').substring(0, 95);
+          const safeLocation = (parsed.current_location || 'N/A').substring(0, 250);
+          const safeCtc = (parsed.current_ctc || 'N/A').substring(0, 95);
+
           const existing = await pool.query('SELECT id FROM candidates WHERE email = $1 AND role_applied = $2', [finalEmail, targetRole.role]);
-          
+
           if (existing.rows.length > 0) {
             const ikUrl = await uploadResume(attachment.data, attachment.filename);
-            
+
             await pool.query(
               `UPDATE candidates SET 
                score = $1, 
@@ -135,16 +147,16 @@ router.post('/scan', async (req, res) => {
                status = $6
                WHERE id = $7`,
               [
-                matchResult.score, 
-                ikUrl, 
-                attachment.source, 
-                safeLocation, 
+                score,
+                ikUrl,
+                attachment.source,
+                safeLocation,
                 safeCtc,
                 finalStatus,
                 existing.rows[0].id
               ]
             );
-            console.log(`--- [Database] Updated: ${matchResult.name} under ${targetRole.role} ---`);
+            console.log(`--- [Database] Updated: ${safeName} under ${targetRole.role} ---`);
           } else {
             const ikUrl = await uploadResume(attachment.data, attachment.filename);
 
@@ -152,12 +164,12 @@ router.post('/scan', async (req, res) => {
               `INSERT INTO candidates (name, email, phone, role_applied, resume_content, score, experience_level, status, resume_url, applied_through, current_location, current_ctc)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
               [
-                (matchResult.name || 'Unknown').substring(0, 250),
+                safeName,
                 finalEmail,
-                (matchResult.phone || 'N/A').substring(0, 45),
+                safePhone,
                 targetRole.role,
                 resumeText.substring(0, 2000),
-                matchResult.score,
+                score,
                 safeExperience,
                 finalStatus,
                 ikUrl,
@@ -166,9 +178,11 @@ router.post('/scan', async (req, res) => {
                 safeCtc
               ]
             );
-            console.log(`--- [Database] Saved New: ${matchResult.name} under ${targetRole.role} ---`);
+            console.log(`--- [Database] Saved New: ${safeName} under ${targetRole.role} ---`);
           }
           candidatesFound++;
+        } else {
+          console.log(`--- [Skip] ${parsed.name} scored ${score} < ${minScoreRequired} for ${targetRole.role} (Auto mode) ---`);
         }
       } catch (procErr) {
         console.error(`--- [Process] Error processing ${attachment.filename}:`, procErr);
@@ -193,6 +207,19 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Error fetching candidates:', err);
     res.status(500).json({ message: 'Error fetching candidates' });
+  }
+});
+
+// Update Candidate Status
+router.patch('/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    await pool.query('UPDATE candidates SET status = $1 WHERE id = $2', [status, id]);
+    res.json({ message: 'Status updated successfully' });
+  } catch (err) {
+    console.error('Error updating status:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

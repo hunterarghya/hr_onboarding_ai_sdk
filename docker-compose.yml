@@ -27,6 +27,14 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: hr-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
   backend:
     build: ./backend
     container_name: hr-backend
@@ -49,10 +57,12 @@ services:
       - IMAGEKIT_PUBLIC_KEY=${IMAGEKIT_PUBLIC_KEY}
       - IMAGEKIT_PRIVATE_KEY=${IMAGEKIT_PRIVATE_KEY}
       - IMAGEKIT_URL_ENDPOINT=${IMAGEKIT_URL_ENDPOINT}
+      - QDRANT_URL=http://qdrant:6333
     depends_on:
       - postgres
       - redis
       - ollama
+      - qdrant
 
   frontend:
     build: ./frontend
@@ -70,3 +80,4 @@ services:
 volumes:
   postgres_data:
   ollama_data:
+  qdrant_data:

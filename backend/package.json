@@ -20,7 +20,9 @@
     "redis": "^4.6.10",
     "whatsapp-web.js": "https://github.com/wwebjs/whatsapp-web.js/tarball/main",
     "qrcode": "^1.5.3",
-    "imagekit": "^5.0.0"
+    "imagekit": "^5.0.0",
+    "@qdrant/js-client-rest": "^1.7.0",
+    "@xenova/transformers": "^2.17.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

@@ -9,6 +9,7 @@ const jobRoutes = require('./routes/jobs');
 const candidateRoutes = require('./routes/candidates');
 const whatsappRoutes = require('./routes/whatsapp');
 const { initWhatsApp } = require('./services/whatsapp');
+const { initCollection, upsertJobDescription } = require('./services/vectorMatch');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +42,7 @@ const initDb = async () => {
         shortlist_mode VARCHAR(20) DEFAULT 'manual',
         deadline TIMESTAMP,
         min_score INTEGER DEFAULT 60,
+        criteria_weights JSONB DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -62,6 +64,23 @@ const initDb = async () => {
       );
     `);
     console.log('Database tables initialized');
+
+    // Add criteria_weights column if it doesn't exist (migration safety)
+    await pool.query(`
+      DO $$ BEGIN
+        ALTER TABLE job_roles ADD COLUMN IF NOT EXISTS criteria_weights JSONB DEFAULT '{}';
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
+    // Initialize Qdrant collection and sync existing jobs
+    await initCollection();
+    const existingJobs = await pool.query('SELECT * FROM job_roles');
+    for (const job of existingJobs.rows) {
+      await upsertJobDescription(job);
+    }
+    console.log(`--- [Vector] Synced ${existingJobs.rows.length} jobs to Qdrant ---`);
+
   } catch (err) {
     console.error('Error initializing database:', err);
   }

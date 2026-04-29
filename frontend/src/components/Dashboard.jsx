@@ -24,7 +24,8 @@ const Dashboard = ({ token, onLogout }) => {
     location: '',
     shortlist_mode: 'manual',
     deadline: '',
-    min_score: 60
+    min_score: 60,
+    criteria_weights: {}
   });
 
   useEffect(() => {
@@ -90,7 +91,8 @@ const Dashboard = ({ token, onLogout }) => {
         location: '',
         shortlist_mode: 'manual',
         deadline: '',
-        min_score: 60
+        min_score: 60,
+        criteria_weights: {}
       });
       fetchJobs();
     } catch (err) {
@@ -137,6 +139,26 @@ const Dashboard = ({ token, onLogout }) => {
     } finally {
       setScanning(false);
     }
+  };
+
+  const handleStatusChange = async (candidateId, newStatus) => {
+    try {
+      await axios.patch(`${API_URL}/candidates/${candidateId}/status`, { status: newStatus });
+      fetchCandidates();
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert('Status update failed');
+    }
+  };
+
+  const updateCriteriaWeight = (jobState, setJobState, key, value) => {
+    const weights = { ...(jobState.criteria_weights || {}) };
+    if (value === 0) {
+      delete weights[key];
+    } else {
+      weights[key] = value;
+    }
+    setJobState({ ...jobState, criteria_weights: weights });
   };
 
   const getStatusColor = () => {
@@ -287,6 +309,26 @@ const Dashboard = ({ token, onLogout }) => {
                   className="custom-slider"
                 />
               </div>
+
+              {/* Criteria Weight Sliders */}
+              <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                <h4 style={{ marginBottom: '0.75rem', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Scoring Criteria (Optional)</h4>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Set weights for each criterion. Leave at 0 to ignore.</p>
+                {['skills', 'projects', 'experience'].map(key => (
+                  <div key={key} className="input-group" style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <label style={{ textTransform: 'capitalize' }}>{key}</label>
+                      <span style={{ fontWeight: '700', color: 'var(--accent)', fontSize: '0.85rem' }}>{newJob.criteria_weights?.[key] || 0}</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="10"
+                      value={newJob.criteria_weights?.[key] || 0}
+                      onChange={e => updateCriteriaWeight(newJob, (v) => setNewJob(v), key, parseInt(e.target.value))}
+                      className="custom-slider" style={{ width: '100%' }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1.5rem' }}>Post Job Description</button>
@@ -407,6 +449,25 @@ const Dashboard = ({ token, onLogout }) => {
                   </div>
                   <input type="range" min="0" max="100" value={editingJob.min_score} onChange={e => setEditingJob({ ...editingJob, min_score: parseInt(e.target.value) })} style={{ width: '100%' }} className="custom-slider" />
                 </div>
+
+                {/* Criteria Weight Sliders */}
+                <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                  <h4 style={{ marginBottom: '0.75rem', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Scoring Criteria (Optional)</h4>
+                  {['skills', 'projects', 'experience'].map(key => (
+                    <div key={key} className="input-group" style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <label style={{ textTransform: 'capitalize' }}>{key}</label>
+                        <span style={{ fontWeight: '700', color: 'var(--accent)', fontSize: '0.85rem' }}>{editingJob.criteria_weights?.[key] || 0}</span>
+                      </div>
+                      <input
+                        type="range" min="0" max="10"
+                        value={editingJob.criteria_weights?.[key] || 0}
+                        onChange={e => updateCriteriaWeight(editingJob, (v) => setEditingJob(v), key, parseInt(e.target.value))}
+                        className="custom-slider" style={{ width: '100%' }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>Save Changes</button>
@@ -500,7 +561,17 @@ const Dashboard = ({ token, onLogout }) => {
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-success">{c.status}</span>
+                    <select
+                      value={c.status}
+                      onChange={(e) => handleStatusChange(c.id, e.target.value)}
+                      className={`status-select status-${c.status}`}
+                    >
+                      <option value="applied">Applied</option>
+                      <option value="shortlisted">Shortlisted</option>
+                      <option value="hold">Hold</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="selected">Selected</option>
+                    </select>
                   </td>
                 </tr>
               ))}
@@ -587,6 +658,22 @@ const Dashboard = ({ token, onLogout }) => {
           filter: invert(1);
           cursor: pointer;
         }
+        .status-select {
+          padding: 4px 12px;
+          border-radius: 1rem;
+          font-size: 0.75rem;
+          font-weight: 600;
+          cursor: pointer;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.05);
+          color: var(--text);
+          outline: none;
+        }
+        .status-applied { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border-color: rgba(59, 130, 246, 0.3); }
+        .status-shortlisted { background: rgba(16, 185, 129, 0.2); color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
+        .status-hold { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); }
+        .status-rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+        .status-selected { background: #065f46; color: #ffffff; border-color: #047857; text-transform: uppercase; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
       `}} />
     </div>
   );
