@@ -13,6 +13,7 @@ const Dashboard = ({ token, onLogout }) => {
   const [waGroups, setWaGroups] = useState([]);
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [showQR, setShowQR] = useState(false);
+  const [submittingJob, setSubmittingJob] = useState(false);
   const [viewingJob, setViewingJob] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
   const [newJob, setNewJob] = useState({
@@ -80,6 +81,8 @@ const Dashboard = ({ token, onLogout }) => {
 
   const handleCreateJob = async (e) => {
     e.preventDefault();
+    if (submittingJob) return;
+    setSubmittingJob(true);
     try {
       await axios.post(`${API_URL}/jobs`, newJob);
       setNewJob({
@@ -94,9 +97,11 @@ const Dashboard = ({ token, onLogout }) => {
         min_score: 60,
         criteria_weights: {}
       });
-      fetchJobs();
+      await fetchJobs();
     } catch (err) {
       console.error('Error creating job:', err);
+    } finally {
+      setSubmittingJob(false);
     }
   };
 
@@ -210,7 +215,21 @@ const Dashboard = ({ token, onLogout }) => {
                 >
                   {selectedGroups.length === 0 ? 'Select Groups...' : `${selectedGroups.length} group(s) selected`}
                 </div>
-                <div style={{ display: 'none', position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '0.5rem', zIndex: 50, maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
+                <div style={{ 
+                  display: 'none', 
+                  position: 'absolute', 
+                  top: '100%', 
+                  left: 0, 
+                  right: 0, 
+                  background: '#121212', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: '0.5rem', 
+                  zIndex: 100, 
+                  maxHeight: '400px', 
+                  overflowY: 'auto', 
+                  marginTop: '8px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)'
+                }}>
                   {waGroups.map(g => (
                     <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <input type="checkbox" checked={selectedGroups.includes(g.id)} onChange={() => toggleGroup(g.id)} />
@@ -346,7 +365,14 @@ const Dashboard = ({ token, onLogout }) => {
               </div>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1.5rem' }}>Post Job Description</button>
+            <button 
+              type="submit" 
+              disabled={submittingJob}
+              className="btn-primary" 
+              style={{ width: '100%', marginTop: '1.5rem', opacity: submittingJob ? 0.7 : 1 }}
+            >
+              {submittingJob ? 'Posting Job...' : 'Post Job Description'}
+            </button>
           </form>
         </section>
 
