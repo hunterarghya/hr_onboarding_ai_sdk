@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, RefreshCw, LogOut, MessageCircle, Mail, MapPin, Phone, FileText, ExternalLink, Eye, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, RefreshCw, LogOut, MessageCircle, Mail, MapPin, Phone, FileText, ExternalLink, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -16,6 +16,16 @@ const Dashboard = ({ token, onLogout }) => {
   const [submittingJob, setSubmittingJob] = useState(false);
   const [viewingJob, setViewingJob] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
+  
+  // Pagination & Filtering States
+  const [candidatePagination, setCandidatePagination] = useState({
+    hasNextPage: false,
+    nextCursor: null,
+    currentCursor: null,
+    cursorStack: []
+  });
+  const [filters, setFilters] = useState({ role: '', source: '', status: '' });
+
   const [newJob, setNewJob] = useState({
     role: '',
     salary: '',
@@ -36,6 +46,12 @@ const Dashboard = ({ token, onLogout }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Refresh candidates when filters change
+  useEffect(() => {
+    fetchCandidates(null); // Reset to first page
+  }, [filters]);
+
+
   useEffect(() => {
     if (waStatus.status === 'ready') {
       fetchWAGroups();
@@ -51,14 +67,44 @@ const Dashboard = ({ token, onLogout }) => {
     }
   };
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = async (cursor = null) => {
+    setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/candidates`);
-      setCandidates(response.data);
+      const params = { limit: 10, ...filters };
+      if (cursor) params.cursor = cursor;
+      
+      const response = await axios.get(`${API_URL}/candidates`, { params });
+      setCandidates(response.data.data);
+      setCandidatePagination(prev => ({
+        ...prev,
+        hasNextPage: response.data.hasNextPage,
+        nextCursor: response.data.nextCursor,
+        currentCursor: cursor
+      }));
     } catch (err) {
       console.error('Error fetching candidates:', err);
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleNextPage = () => {
+    if (candidatePagination.nextCursor) {
+      setCandidatePagination(prev => ({
+        ...prev,
+        cursorStack: [...prev.cursorStack, prev.currentCursor]
+      }));
+      fetchCandidates(candidatePagination.nextCursor);
+    }
+  };
+
+  const handlePrevPage = () => {
+    const stack = [...candidatePagination.cursorStack];
+    const prevCursor = stack.pop();
+    setCandidatePagination(prev => ({ ...prev, cursorStack: stack }));
+    fetchCandidates(prevCursor);
+  };
+
 
   const fetchWAStatus = async () => {
     try {
@@ -215,18 +261,18 @@ const Dashboard = ({ token, onLogout }) => {
                 >
                   {selectedGroups.length === 0 ? 'Select Groups...' : `${selectedGroups.length} group(s) selected`}
                 </div>
-                <div style={{ 
-                  display: 'none', 
-                  position: 'absolute', 
-                  top: '100%', 
-                  left: 0, 
-                  right: 0, 
-                  background: '#121212', 
-                  border: '1px solid var(--border)', 
-                  borderRadius: '0.5rem', 
-                  zIndex: 100, 
-                  maxHeight: '400px', 
-                  overflowY: 'auto', 
+                <div style={{
+                  display: 'none',
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: '#121212',
+                  border: '1px solid var(--border)',
+                  borderRadius: '0.5rem',
+                  zIndex: 100,
+                  maxHeight: '400px',
+                  overflowY: 'auto',
                   marginTop: '8px',
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)'
                 }}>
@@ -365,10 +411,10 @@ const Dashboard = ({ token, onLogout }) => {
               </div>
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={submittingJob}
-              className="btn-primary" 
+              className="btn-primary"
               style={{ width: '100%', marginTop: '1.5rem', opacity: submittingJob ? 0.7 : 1 }}
             >
               {submittingJob ? 'Posting Job...' : 'Post Job Description'}
@@ -521,9 +567,36 @@ const Dashboard = ({ token, onLogout }) => {
 
       {/* Candidates Table */}
       <section className="glass-card" style={{ marginTop: '2rem' }}>
-        <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Search size={20} /> Shortlisted Candidates
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Search size={20} /> Shortlisted Candidates
+          </h3>
+          <button onClick={() => fetchCandidates(null)} title="Refresh Table" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem' }}>
+            <RefreshCw size={16} className={loading ? 'spin' : ''} />
+          </button>
+        </div>
+
+        <div className="filter-bar">
+          <select className="filter-select" value={filters.role} onChange={e => setFilters({ ...filters, role: e.target.value })}>
+            <option value="">All Roles</option>
+            <option value="Open">Open</option>
+            {jobs.map(j => <option key={j.id} value={j.role}>{j.role}</option>)}
+          </select>
+          <select className="filter-select" value={filters.source} onChange={e => setFilters({ ...filters, source: e.target.value })}>
+            <option value="">All Sources</option>
+            <option value="Gmail">Gmail</option>
+            <option value="WhatsApp">WhatsApp</option>
+          </select>
+          <select className="filter-select" value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}>
+            <option value="">All Statuses</option>
+            <option value="applied">Applied</option>
+            <option value="shortlisted">Shortlisted</option>
+            <option value="hold">Hold</option>
+            <option value="rejected">Rejected</option>
+            <option value="selected">Selected</option>
+          </select>
+        </div>
+
         <div className="table-container">
           <table>
             <thead>
@@ -618,13 +691,24 @@ const Dashboard = ({ token, onLogout }) => {
               ))}
             </tbody>
           </table>
-          {candidates.length === 0 && (
+          {candidates.length === 0 && !loading && (
             <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
               No candidates found yet. Run "Scan Mail" to search your inbox.
             </div>
           )}
         </div>
+
+        <div className="pagination-controls">
+          <button onClick={handlePrevPage} disabled={candidatePagination.cursorStack.length === 0} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', opacity: candidatePagination.cursorStack.length === 0 ? 0.5 : 1 }}>
+            <ChevronLeft size={16} /> Previous
+          </button>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Page {candidatePagination.cursorStack.length + 1}</span>
+          <button onClick={handleNextPage} disabled={!candidatePagination.hasNextPage} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', opacity: !candidatePagination.hasNextPage ? 0.5 : 1 }}>
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
       </section>
+
 
       <style dangerouslySetInnerHTML={{
         __html: `

@@ -18,7 +18,7 @@
 
 body {
   background-color: var(--bg);
-  background-image: 
+  background-image:
     radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
     radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%);
   color: var(--text);
@@ -70,7 +70,9 @@ label {
   color: var(--text-muted);
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   width: 100%;
   padding: 0.75rem;
   border-radius: 0.5rem;
@@ -124,6 +126,31 @@ td {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 3rem;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.5rem;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  width: auto;
+  min-width: 150px;
+  background: rgba(30, 41, 59, 0.5);
+  border-color: var(--border);
 }
 
 .grid {

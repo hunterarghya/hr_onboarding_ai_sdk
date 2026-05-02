@@ -212,9 +212,54 @@ router.post('/scan', async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
+  const { limit = 10, cursor, role, status, source } = req.query;
+  const pageSize = parseInt(limit);
+  
   try {
-    const result = await pool.query('SELECT * FROM candidates ORDER BY date_applied DESC');
-    res.json(result.rows);
+    let query = 'SELECT * FROM candidates WHERE 1=1';
+    const params = [];
+    let paramIndex = 1;
+
+    if (role) {
+      query += ` AND role_applied = $${paramIndex++}`;
+      params.push(role);
+    }
+    if (status) {
+      query += ` AND status = $${paramIndex++}`;
+      params.push(status);
+    }
+    if (source) {
+      query += ` AND applied_through = $${paramIndex++}`;
+      params.push(source);
+    }
+
+    if (cursor) {
+      const [cursorTime, cursorId] = cursor.split('_');
+      query += ` AND (date_applied < $${paramIndex} OR (date_applied = $${paramIndex} AND id < $${paramIndex + 1}))`;
+      params.push(cursorTime, cursorId);
+      paramIndex += 2;
+    }
+
+    query += ` ORDER BY date_applied DESC, id DESC LIMIT $${paramIndex}`;
+    params.push(pageSize + 1);
+
+    const result = await pool.query(query, params);
+    const rows = result.rows;
+    
+    const hasNextPage = rows.length > pageSize;
+    const data = hasNextPage ? rows.slice(0, pageSize) : rows;
+    
+    let nextCursor = null;
+    if (hasNextPage) {
+      const lastItem = data[data.length - 1];
+      nextCursor = `${lastItem.date_applied.toISOString()}_${lastItem.id}`;
+    }
+
+    res.json({
+      data,
+      nextCursor,
+      hasNextPage
+    });
   } catch (err) {
     console.error('Error fetching candidates:', err);
     res.status(500).json({ message: 'Error fetching candidates' });
