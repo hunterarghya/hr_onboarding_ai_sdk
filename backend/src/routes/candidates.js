@@ -212,7 +212,7 @@ router.post('/scan', async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
-  const { limit = 10, cursor, role, status, source } = req.query;
+  const { limit = 10, cursor, role, status, source, name, minScore, maxScore, scoreSort } = req.query;
   const pageSize = parseInt(limit);
   
   try {
@@ -220,6 +220,7 @@ router.get('/', async (req, res) => {
     const params = [];
     let paramIndex = 1;
 
+    // Filters
     if (role) {
       query += ` AND role_applied = $${paramIndex++}`;
       params.push(role);
@@ -232,15 +233,49 @@ router.get('/', async (req, res) => {
       query += ` AND applied_through = $${paramIndex++}`;
       params.push(source);
     }
-
-    if (cursor) {
-      const [cursorTime, cursorId] = cursor.split('_');
-      query += ` AND (date_applied < $${paramIndex} OR (date_applied = $${paramIndex} AND id < $${paramIndex + 1}))`;
-      params.push(cursorTime, cursorId);
-      paramIndex += 2;
+    if (name) {
+      query += ` AND name ILIKE $${paramIndex++}`;
+      params.push(`%${name}%`);
+    }
+    if (minScore !== undefined && minScore !== '') {
+      query += ` AND score >= $${paramIndex++}`;
+      params.push(parseInt(minScore));
+    }
+    if (maxScore !== undefined && maxScore !== '') {
+      query += ` AND score <= $${paramIndex++}`;
+      params.push(parseInt(maxScore));
     }
 
-    query += ` ORDER BY date_applied DESC, id DESC LIMIT $${paramIndex}`;
+    // Cursor Logic (Dynamic Keyset)
+    if (cursor) {
+      const [cScore, cTime, cId] = cursor.split('|');
+      const scoreVal = parseInt(cScore);
+
+      if (scoreSort === 'highToLow') {
+        query += ` AND (score < $${paramIndex} OR (score = $${paramIndex} AND (date_applied < $${paramIndex + 1} OR (date_applied = $${paramIndex + 1} AND id < $${paramIndex + 2}))))`;
+        params.push(scoreVal, cTime, cId);
+        paramIndex += 3;
+      } else if (scoreSort === 'lowToHigh') {
+        query += ` AND (score > $${paramIndex} OR (score = $${paramIndex} AND (date_applied < $${paramIndex + 1} OR (date_applied = $${paramIndex + 1} AND id < $${paramIndex + 2}))))`;
+        params.push(scoreVal, cTime, cId);
+        paramIndex += 3;
+      } else {
+        // Default: Newest First
+        query += ` AND (date_applied < $${paramIndex} OR (date_applied = $${paramIndex} AND id < $${paramIndex + 1}))`;
+        params.push(cTime, cId);
+        paramIndex += 2;
+      }
+    }
+
+    // Dynamic Ordering
+    let orderBy = 'ORDER BY date_applied DESC, id DESC';
+    if (scoreSort === 'highToLow') {
+      orderBy = 'ORDER BY score DESC, date_applied DESC, id DESC';
+    } else if (scoreSort === 'lowToHigh') {
+      orderBy = 'ORDER BY score ASC, date_applied DESC, id DESC';
+    }
+
+    query += ` ${orderBy} LIMIT $${paramIndex}`;
     params.push(pageSize + 1);
 
     const result = await pool.query(query, params);
@@ -252,7 +287,8 @@ router.get('/', async (req, res) => {
     let nextCursor = null;
     if (hasNextPage) {
       const lastItem = data[data.length - 1];
-      nextCursor = `${lastItem.date_applied.toISOString()}_${lastItem.id}`;
+      // Store score, date, and id in the cursor to maintain sort position
+      nextCursor = `${lastItem.score}|${lastItem.date_applied.toISOString()}|${lastItem.id}`;
     }
 
     res.json({

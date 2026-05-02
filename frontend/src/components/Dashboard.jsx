@@ -24,7 +24,17 @@ const Dashboard = ({ token, onLogout }) => {
     currentCursor: null,
     cursorStack: []
   });
-  const [filters, setFilters] = useState({ role: '', source: '', status: '' });
+  const [filters, setFilters] = useState({ 
+    role: '', 
+    source: '', 
+    status: '',
+    scoreSort: '',
+    minScore: 0,
+    maxScore: 100,
+    name: ''
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+
 
   const [newJob, setNewJob] = useState({
     role: '',
@@ -70,16 +80,21 @@ const Dashboard = ({ token, onLogout }) => {
   const fetchCandidates = async (cursor = null) => {
     setLoading(true);
     try {
-      const params = { limit: 10, ...filters };
+      const params = { 
+        limit: 10, 
+        ...filters
+      };
       if (cursor) params.cursor = cursor;
       
       const response = await axios.get(`${API_URL}/candidates`, { params });
+
       setCandidates(response.data.data);
       setCandidatePagination(prev => ({
         ...prev,
         hasNextPage: response.data.hasNextPage,
         nextCursor: response.data.nextCursor,
-        currentCursor: cursor
+        currentCursor: cursor,
+        cursorStack: cursor === null ? [] : prev.cursorStack
       }));
     } catch (err) {
       console.error('Error fetching candidates:', err);
@@ -576,26 +591,86 @@ const Dashboard = ({ token, onLogout }) => {
           </button>
         </div>
 
-        <div className="filter-bar">
-          <select className="filter-select" value={filters.role} onChange={e => setFilters({ ...filters, role: e.target.value })}>
-            <option value="">All Roles</option>
-            <option value="Open">Open</option>
-            {jobs.map(j => <option key={j.id} value={j.role}>{j.role}</option>)}
-          </select>
-          <select className="filter-select" value={filters.source} onChange={e => setFilters({ ...filters, source: e.target.value })}>
-            <option value="">All Sources</option>
-            <option value="Gmail">Gmail</option>
-            <option value="WhatsApp">WhatsApp</option>
-          </select>
-          <select className="filter-select" value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}>
-            <option value="">All Statuses</option>
-            <option value="applied">Applied</option>
-            <option value="shortlisted">Shortlisted</option>
-            <option value="hold">Hold</option>
-            <option value="rejected">Rejected</option>
-            <option value="selected">Selected</option>
-          </select>
+        <div className="filter-bar" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '300px' }}>
+              <input 
+                type="text" 
+                placeholder="Search by name..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && setFilters({ ...filters, name: searchTerm })}
+                style={{ flex: 1 }}
+              />
+              <button 
+                onClick={() => setFilters({ ...filters, name: searchTerm })}
+                className="btn-primary"
+                style={{ width: 'auto', padding: '0 1rem' }}
+              >
+                <Search size={18} />
+              </button>
+            </div>
+
+            <select className="filter-select" value={filters.role} onChange={e => setFilters({ ...filters, role: e.target.value })}>
+              <option value="">All Roles</option>
+              <option value="Open">Open</option>
+              {jobs.map(j => <option key={j.id} value={j.role}>{j.role}</option>)}
+            </select>
+            
+            <select className="filter-select" value={filters.source} onChange={e => setFilters({ ...filters, source: e.target.value })}>
+              <option value="">All Sources</option>
+              <option value="Gmail">Gmail</option>
+              <option value="WhatsApp">WhatsApp</option>
+            </select>
+            
+            <select className="filter-select" value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}>
+              <option value="">All Statuses</option>
+              <option value="applied">Applied</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="hold">Hold</option>
+              <option value="rejected">Rejected</option>
+              <option value="selected">Selected</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Score Sort:</span>
+              <select 
+                className="filter-select" 
+                style={{ minWidth: '160px' }}
+                value={filters.scoreSort} 
+                onChange={e => setFilters({ ...filters, scoreSort: e.target.value })}
+              >
+                <option value="">Newest First</option>
+                <option value="highToLow">High to Low</option>
+                <option value="lowToHigh">Low to High</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Score Range:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input 
+                  type="number" 
+                  min="0" max="100" 
+                  value={filters.minScore} 
+                  onChange={e => setFilters({ ...filters, minScore: e.target.value })}
+                  style={{ width: '70px', padding: '0.4rem', textAlign: 'center' }}
+                />
+                <span style={{ color: 'var(--text-muted)' }}>to</span>
+                <input 
+                  type="number" 
+                  min="0" max="100" 
+                  value={filters.maxScore} 
+                  onChange={e => setFilters({ ...filters, maxScore: e.target.value })}
+                  style={{ width: '70px', padding: '0.4rem', textAlign: 'center' }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
+
 
         <div className="table-container">
           <table>
