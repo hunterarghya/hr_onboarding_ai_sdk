@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const jobRoutes = require('./routes/jobs');
 const candidateRoutes = require('./routes/candidates');
 const whatsappRoutes = require('./routes/whatsapp');
+const interviewRoutes = require('./routes/interviews');
 const { initWhatsApp } = require('./services/whatsapp');
 const { initCollection, upsertJobDescription } = require('./services/vectorMatch');
 
@@ -70,6 +71,26 @@ const initDb = async () => {
         last_scanned_at TIMESTAMP NOT NULL DEFAULT '1970-01-01',
         UNIQUE(source_type, source_id)
       );
+
+      CREATE TABLE IF NOT EXISTS interview_events (
+        id SERIAL PRIMARY KEY,
+        role VARCHAR(255) NOT NULL,
+        event_date DATE NOT NULL,
+        start_time TIME NOT NULL,
+        end_time TIME NOT NULL,
+        num_candidates INTEGER DEFAULT 5,
+        extra_candidates INTEGER DEFAULT 0,
+        google_event_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS interview_candidates (
+        id SERIAL PRIMARY KEY,
+        event_id INTEGER NOT NULL REFERENCES interview_events(id) ON DELETE CASCADE,
+        candidate_id INTEGER NOT NULL REFERENCES candidates(id),
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(event_id, candidate_id)
+      );
     `);
     console.log('Database tables initialized');
 
@@ -101,6 +122,7 @@ app.use('/auth', authRoutes);
 app.use('/jobs', jobRoutes);
 app.use('/candidates', candidateRoutes);
 app.use('/whatsapp', whatsappRoutes);
+app.use('/interviews', interviewRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
