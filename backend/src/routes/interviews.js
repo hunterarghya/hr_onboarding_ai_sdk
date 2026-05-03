@@ -269,23 +269,47 @@ router.post('/events/:id/candidates/auto', async (req, res) => {
     );
     const excludeIds = alreadyAssigned.rows.map(r => r.candidate_id);
 
-    // Get top N shortlisted candidates for this role, excluding already-assigned ones
-    let query = `
-      SELECT id FROM candidates
-      WHERE role_applied = $1
-        AND status IN ('shortlisted', 'applied', 'accepted')
-    `;
-    const params = [event.role];
-    let paramIdx = 2;
+    // Get top N shortlisted candidates, excluding already-assigned ones
+    let query;
+    let params;
 
-    if (excludeIds.length > 0) {
-      query += ` AND id != ALL($${paramIdx}::int[])`;
-      params.push(excludeIds);
-      paramIdx++;
+    if (event.role === 'Open Role') {
+      // Open Role: candidates whose role_applied is NOT in any active job_roles
+      const activeRolesResult = await pool.query('SELECT role FROM job_roles');
+      const activeRolesList = activeRolesResult.rows.map(r => r.role);
+
+      query = `
+        SELECT id FROM candidates
+        WHERE status IN ('shortlisted', 'applied', 'accepted')
+          AND (role_applied IS NULL OR role_applied NOT IN (${activeRolesList.map((_, i) => `$${i + 1}`).join(',')}))
+      `;
+      params = [...activeRolesList];
+      let paramIdx = activeRolesList.length + 1;
+
+      if (excludeIds.length > 0) {
+        query += ` AND id != ALL($${paramIdx}::int[])`;
+        params.push(excludeIds);
+        paramIdx++;
+      }
+      query += ` ORDER BY score DESC LIMIT $${paramIdx}`;
+      params.push(totalSlots);
+    } else {
+      query = `
+        SELECT id FROM candidates
+        WHERE role_applied = $1
+          AND status IN ('shortlisted', 'applied', 'accepted')
+      `;
+      params = [event.role];
+      let paramIdx = 2;
+
+      if (excludeIds.length > 0) {
+        query += ` AND id != ALL($${paramIdx}::int[])`;
+        params.push(excludeIds);
+        paramIdx++;
+      }
+      query += ` ORDER BY score DESC LIMIT $${paramIdx}`;
+      params.push(totalSlots);
     }
-
-    query += ` ORDER BY score DESC LIMIT $${paramIdx}`;
-    params.push(totalSlots);
 
     const candidatesResult = await pool.query(query, params);
     const candidateIds = candidatesResult.rows.map(r => r.id);
@@ -435,10 +459,22 @@ router.post('/sync-calendar', authenticate, async (req, res) => {
 
     // Get existing google_event_ids to avoid duplicates
     const existingResult = await pool.query(
-      'SELECT google_event_id FROM interview_events WHERE google_event_id IS NOT NULL'
+      'SELECT id, google_event_id FROM interview_events WHERE google_event_id IS NOT NULL'
     );
     const existingGoogleIds = new Set(existingResult.rows.map(r => r.google_event_id));
     console.log(`[Sync] Already imported event IDs in DB: [${[...existingGoogleIds].join(', ')}]`);
+
+    // Delete events from DB that no longer exist in Google Calendar
+    const calendarEventIds = new Set(calendarEvents.map(e => e.id));
+    let deletedCount = 0;
+    for (const row of existingResult.rows) {
+      if (!calendarEventIds.has(row.google_event_id)) {
+        await pool.query('DELETE FROM interview_events WHERE id = $1', [row.id]);
+        deletedCount++;
+        console.log(`[Sync] 🗑️ DELETED from DB (removed from Google Calendar): ${row.google_event_id}`);
+      }
+    }
+    if (deletedCount > 0) console.log(`[Sync] Deleted ${deletedCount} stale events from DB.`);
 
     let imported = 0;
     let skippedDuplicate = 0;
@@ -545,13 +581,34 @@ router.get('/eligible-candidates/:eventId', async (req, res) => {
 
     const role = eventResult.rows[0].role;
 
-    const result = await pool.query(
-      `SELECT * FROM candidates
-       WHERE role_applied = $1
-         AND status IN ('shortlisted', 'applied', 'accepted')
-       ORDER BY score DESC`,
-      [role]
-    );
+    let result;
+
+    if (role === 'Open Role') {
+      // Open Role: candidates whose role_applied doesn't match any active job_roles
+      const activeRolesResult = await pool.query('SELECT role FROM job_roles');
+      const activeRolesList = activeRolesResult.rows.map(r => r.role);
+
+      if (activeRolesList.length > 0) {
+        const placeholders = activeRolesList.map((_, i) => `$${i + 1}`).join(',');
+        result = await pool.query(
+          `SELECT * FROM candidates 
+           WHERE status IN ('shortlisted', 'applied', 'accepted')
+             AND (role_applied IS NULL OR role_applied NOT IN (${placeholders}))
+           ORDER BY score DESC`,
+          activeRolesList
+        );
+      } else {
+        // No active roles at all — show all candidates
+        result = await pool.query(
+          `SELECT * FROM candidates WHERE status IN ('shortlisted', 'applied', 'accepted') ORDER BY score DESC`
+        );
+      }
+    } else {
+      result = await pool.query(
+        `SELECT * FROM candidates WHERE role_applied = $1 AND status IN ('shortlisted', 'applied', 'accepted') ORDER BY score DESC`,
+        [role]
+      );
+    }
 
     res.json(result.rows);
   } catch (err) {

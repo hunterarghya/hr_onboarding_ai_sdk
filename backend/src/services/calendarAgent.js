@@ -22,6 +22,18 @@ const convertToIST = (timeStr) => {
 };
 
 /**
+ * Validates a time string is in HH:MM format. Returns the time if valid, null otherwise.
+ */
+const sanitizeTime = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const h = parseInt(match[1]), m = parseInt(match[2]);
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+/**
  * Uses an AI agent to parse a Google Calendar event into a structured interview event.
  */
 const parseCalendarEvent = async (calendarEvent, activeRoles) => {
@@ -51,10 +63,11 @@ const parseCalendarEvent = async (calendarEvent, activeRoles) => {
     Tasks:
     1. Identify if this event is related to a job role or hiring activity. 
     2. Role Matching: Find the most similar role from the Active Role List. Even if there are typos, missing words, or capitalization differences (e.g., "ui dev" matches "UI Developer"), you MUST return the exact role name from the list.
-    3. If NO role from the list is mentioned at all, return is_activity=false.
-    4. Extract the date (YYYY-MM-DD).
-    5. Extract the start_time and end_time (HH:MM) EXACTLY as they appear in the UTC timestamp provided above. DO NOT convert them.
-    6. Candidate Count:
+    3. If the event IS an interview/hiring activity but NO role from the list matches, return matched_role as "Open Role".
+    4. If the event is NOT related to interviews or hiring at all, return is_activity=false.
+    5. Extract the date (YYYY-MM-DD).
+    6. Extract the start_time and end_time (HH:MM) EXACTLY as they appear in the UTC timestamp provided above. DO NOT convert them. The time MUST be in HH:MM format (e.g., "09:00", "14:30"). Never return text like "TBC" or "N/A".
+    7. Candidate Count:
        - Look for ANY number associated with candidates (e.g., "2 candidate", "for 3", "5 pax", "1 person", "2 people", "4" etc.).
        - If a number is found in the title or description, extract it as num_candidates.
        - If no number is found in the title or description, return 5 as the default value for num_candidates
@@ -62,7 +75,7 @@ const parseCalendarEvent = async (calendarEvent, activeRoles) => {
     Return ONLY JSON:
     {
       "is_activity": true,
-      "matched_role": "Exact Role Name from List",
+      "matched_role": "Exact Role Name from List or Open Role",
       "date": "YYYY-MM-DD",
       "start_time": "HH:MM",
       "end_time": "HH:MM",
@@ -91,40 +104,90 @@ const parseCalendarEvent = async (calendarEvent, activeRoles) => {
       return null;
     }
 
-    if (!result.is_activity || !result.matched_role) {
-      console.log(`[CalendarAgent] ⏭️ SKIPPED: No matching role identified by agent.`);
+    if (!result.is_activity) {
+      console.log(`[CalendarAgent] ⏭️ SKIPPED: Agent said is_activity=false`);
       return null;
     }
 
-    // Verify the role against the list (case-insensitive fallback)
-    let finalRole = activeRoles.find(r => r.toLowerCase() === result.matched_role.toLowerCase());
+    // Determine the final role
+    let finalRole = null;
 
-    if (!finalRole) {
-      console.log(`[CalendarAgent] ❌ Role "${result.matched_role}" not in active list. Attempting partial match...`);
-      finalRole = activeRoles.find(r => summary.toLowerCase().includes(r.toLowerCase()));
+    if (result.matched_role) {
+      // Check if it matches an active role (case-insensitive)
+      finalRole = activeRoles.find(r => r.toLowerCase() === result.matched_role.toLowerCase());
+
+      // If agent returned "Open Role" explicitly
+      if (!finalRole && result.matched_role.toLowerCase() === 'open role') {
+        finalRole = 'Open Role';
+      }
+
+      // Partial match fallback against the title
+      if (!finalRole) {
+        console.log(`[CalendarAgent] Role "${result.matched_role}" not in active list. Attempting partial match...`);
+        finalRole = activeRoles.find(r => summary.toLowerCase().includes(r.toLowerCase()));
+      }
     }
 
+    // Final fallback: if it IS an activity but no role matched, call it Open Role
     if (!finalRole) {
-      console.log(`[CalendarAgent] ❌ No valid role found even after fallback. Skipping.`);
+      const lowerSummary = summary.toLowerCase();
+      const lowerDesc = description.toLowerCase();
+      const interviewKeywords = ['interview', 'hiring', 'recruit', 'candidate', 'screening', 'assessment'];
+      const hasInterviewKeyword = interviewKeywords.some(kw => lowerSummary.includes(kw) || lowerDesc.includes(kw));
+
+      if (hasInterviewKeyword || result.is_activity) {
+        finalRole = 'Open Role';
+        console.log(`[CalendarAgent] No specific role matched. Defaulting to "Open Role".`);
+      } else {
+        console.log(`[CalendarAgent] ❌ Not an interview event. Skipping.`);
+        return null;
+      }
+    }
+
+    // Sanitize times — prevent "TBC", "N/A", etc. from crashing Postgres
+    let startTime = sanitizeTime(result.start_time);
+    let endTime = sanitizeTime(result.end_time);
+
+    // Fallback: extract time from the raw Google Calendar timestamps
+    if (!startTime && startDateTime.includes('T')) {
+      const timePart = startDateTime.split('T')[1];
+      startTime = sanitizeTime(timePart?.substring(0, 5));
+    }
+    if (!endTime && endDateTime.includes('T')) {
+      const timePart = endDateTime.split('T')[1];
+      endTime = sanitizeTime(timePart?.substring(0, 5));
+    }
+
+    // If still no valid start time, skip
+    if (!startTime) {
+      console.log(`[CalendarAgent] ❌ Could not determine a valid start time. Skipping.`);
       return null;
+    }
+    // Default end time: start + 4 hours
+    if (!endTime) {
+      const [sh, sm] = startTime.split(':').map(Number);
+      let endMinutes = (sh * 60 + sm + 240) % (24 * 60);
+      endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
+      console.log(`[CalendarAgent] End time missing/invalid. Defaulting to ${endTime} (start + 4h)`);
     }
 
     // Deterministic IST Conversion (+5:30)
-    const istStart = convertToIST(result.start_time);
-    const istEnd = convertToIST(result.end_time);
+    const istStart = convertToIST(startTime);
+    const istEnd = convertToIST(endTime);
 
     const finalResult = {
       role: finalRole,
       event_date: result.date,
       start_time: istStart,
       end_time: istEnd,
-      num_candidates: result.num_candidates || 5,
+      num_candidates: parseInt(result.num_candidates) || 5,
       extra_candidates: 0,
       google_event_id: calendarEvent.id,
     };
 
     console.log(`[CalendarAgent] ✅ SUCCESS: ${finalRole}`);
-    console.log(`[CalendarAgent] 🕒 Conversion: UTC ${result.start_time} -> IST ${istStart}`);
+    console.log(`[CalendarAgent] 🕒 Conversion: UTC ${startTime} -> IST ${istStart}`);
+    console.log(`[CalendarAgent] 👥 Candidates: ${finalResult.num_candidates}`);
     return finalResult;
 
   } catch (err) {
