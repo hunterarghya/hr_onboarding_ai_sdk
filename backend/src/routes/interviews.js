@@ -155,29 +155,45 @@ router.post('/events/:id/candidates/manual', async (req, res) => {
   const { id } = req.params;
   const { candidate_ids } = req.body;
 
-  if (!candidate_ids || !Array.isArray(candidate_ids) || candidate_ids.length === 0) {
+  if (!candidate_ids || !Array.isArray(candidate_ids)) {
     return res.status(400).json({ error: 'candidate_ids array is required' });
   }
 
   try {
     // Clear existing assignments for this event
+    const currentResult = await pool.query(
+      'SELECT candidate_id FROM interview_candidates WHERE event_id = $1',
+      [id]
+    );
+    const currentIds = currentResult.rows.map(r => r.candidate_id);
+
+    // Revert old candidates back to 'shortlisted'
+    if (currentIds.length > 0) {
+      await pool.query(
+        `UPDATE candidates SET status = 'shortlisted' WHERE id = ANY($1::int[])`,
+        [currentIds]
+      );
+    }
+
     await pool.query('DELETE FROM interview_candidates WHERE event_id = $1', [id]);
 
-    // Insert new assignments
-    const values = candidate_ids.map((cid, i) => `($1, $${i + 2})`).join(', ');
-    const params = [id, ...candidate_ids];
+    if (candidate_ids.length > 0) {
+      // Insert new assignments
+      const values = candidate_ids.map((cid, i) => `($1, $${i + 2})`).join(', ');
+      const params = [id, ...candidate_ids];
 
-    await pool.query(
-      `INSERT INTO interview_candidates (event_id, candidate_id) VALUES ${values}
-       ON CONFLICT (event_id, candidate_id) DO NOTHING`,
-      params
-    );
+      await pool.query(
+        `INSERT INTO interview_candidates (event_id, candidate_id) VALUES ${values}
+         ON CONFLICT (event_id, candidate_id) DO NOTHING`,
+        params
+      );
 
-    // Update candidate status to 'accepted' for interview
-    await pool.query(
-      `UPDATE candidates SET status = 'accepted' WHERE id = ANY($1::int[])`,
-      [candidate_ids]
-    );
+      // Update candidate status to 'accepted' for interview
+      await pool.query(
+        `UPDATE candidates SET status = 'accepted' WHERE id = ANY($1::int[])`,
+        [candidate_ids]
+      );
+    }
 
     res.json({ message: 'Candidates assigned successfully', count: candidate_ids.length });
   } catch (err) {
@@ -195,7 +211,7 @@ router.patch('/events/:id/candidates/manual', async (req, res) => {
   const { id } = req.params;
   const { candidate_ids } = req.body;
 
-  if (!candidate_ids || !Array.isArray(candidate_ids) || candidate_ids.length === 0) {
+  if (!candidate_ids || !Array.isArray(candidate_ids)) {
     return res.status(400).json({ error: 'candidate_ids array is required' });
   }
 
@@ -219,20 +235,22 @@ router.patch('/events/:id/candidates/manual', async (req, res) => {
     // Clear and re-insert
     await pool.query('DELETE FROM interview_candidates WHERE event_id = $1', [id]);
 
-    const values = candidate_ids.map((cid, i) => `($1, $${i + 2})`).join(', ');
-    const params = [id, ...candidate_ids];
+    if (candidate_ids.length > 0) {
+      const values = candidate_ids.map((cid, i) => `($1, $${i + 2})`).join(', ');
+      const params = [id, ...candidate_ids];
 
-    await pool.query(
-      `INSERT INTO interview_candidates (event_id, candidate_id) VALUES ${values}
-       ON CONFLICT (event_id, candidate_id) DO NOTHING`,
-      params
-    );
+      await pool.query(
+        `INSERT INTO interview_candidates (event_id, candidate_id) VALUES ${values}
+         ON CONFLICT (event_id, candidate_id) DO NOTHING`,
+        params
+      );
 
-    // Update new candidates status
-    await pool.query(
-      `UPDATE candidates SET status = 'accepted' WHERE id = ANY($1::int[])`,
-      [candidate_ids]
-    );
+      // Update new candidates status
+      await pool.query(
+        `UPDATE candidates SET status = 'accepted' WHERE id = ANY($1::int[])`,
+        [candidate_ids]
+      );
+    }
 
     res.json({ message: 'Candidates updated successfully', count: candidate_ids.length });
   } catch (err) {

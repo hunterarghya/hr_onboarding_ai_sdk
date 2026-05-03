@@ -126,15 +126,35 @@ const InterviewScheduler = ({ token, jobs }) => {
 
   const saveManualSelection = async (eventId) => {
     const ids = Array.from(selectedCandidateIds);
-    if (ids.length === 0) return alert('Select at least one candidate');
     try {
       const method = editingEventId ? 'patch' : 'post';
       await axios[method](`${API_URL}/interviews/events/${eventId}/candidates/manual`,
         { candidate_ids: ids }, { headers });
+      
+      // Refresh the specific assigned list first
+      await fetchAssignedCandidates(eventId);
+      
+      // Refresh global events to update badges (e.g. "2 assigned")
+      await fetchEvents();
+      
       setSelectionMode(null);
       setEditingEventId(null);
-      await fetchAssignedCandidates(eventId);
-    } catch (err) { console.error('Error saving selection:', err); alert('Failed to save'); }
+    } catch (err) { 
+      console.error('Error saving selection:', err); 
+      alert('Failed to save candidates. Check console for details.'); 
+    }
+  };
+
+  const handleStatusChange = async (candidateId, newStatus, eventId) => {
+    try {
+      await axios.patch(`${API_URL}/candidates/${candidateId}/status`, { status: newStatus }, { headers });
+      // Refresh both assigned and eligible lists
+      if (eventId) await fetchAssignedCandidates(eventId);
+      if (selectionMode === 'manual') await fetchEligible(eventId);
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert('Status update failed');
+    }
   };
 
   const handleAutoAssign = async (eventId) => {
@@ -142,6 +162,7 @@ const InterviewScheduler = ({ token, jobs }) => {
     try {
       await axios.post(`${API_URL}/interviews/events/${eventId}/candidates/auto`, {}, { headers });
       await fetchAssignedCandidates(eventId);
+      await fetchEvents();
     } catch (err) { console.error('Error auto-assigning:', err); alert('Auto-assign failed'); }
   };
 
@@ -189,7 +210,7 @@ const InterviewScheduler = ({ token, jobs }) => {
             <button onClick={() => setCalendarMonth(new Date(year, month + 1, 1))} className="cal-nav-btn">&gt;</button>
           </div>
           <div className="calendar-grid">
-            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
               <div key={d} className="cal-header-cell">{d}</div>
             ))}
             {calendarDays.map((day, i) => {
@@ -283,7 +304,7 @@ const InterviewScheduler = ({ token, jobs }) => {
                   <div className="event-info">
                     <div className="event-role"><Briefcase size={16} /> {event.role}</div>
                     <div className="event-meta">
-                      <span><Clock size={14} /> {event.start_time?.slice(0,5)} — {event.end_time?.slice(0,5)}</span>
+                      <span><Clock size={14} /> {event.start_time?.slice(0, 5)} — {event.end_time?.slice(0, 5)}</span>
                       <span><Users size={14} /> {event.num_candidates}{event.extra_candidates > 0 ? `+${event.extra_candidates}` : ''} candidates</span>
                     </div>
                   </div>
@@ -329,8 +350,8 @@ const InterviewScheduler = ({ token, jobs }) => {
                                       if (selectedCandidateIds.size === eligibleCandidates.length) setSelectedCandidateIds(new Set());
                                       else setSelectedCandidateIds(new Set(eligibleCandidates.map(c => c.id)));
                                     }} /></th>
-                                  <th>Source</th><th>Name</th><th>Mobile</th><th>Location</th>
-                                  <th>CTC</th><th>Experience</th><th>Score</th><th>Resume</th><th>Status</th>
+                                  <th>Source</th><th>Name</th><th>Role Applied</th><th>Mobile</th><th>Location</th>
+                                  <th>CTC</th><th>Experience</th><th>Qualification</th><th>Skills</th><th>Score</th><th>Resume</th><th>Status</th>
                                 </tr></thead>
                                 <tbody>
                                   {eligibleCandidates.map(c => (
@@ -341,13 +362,30 @@ const InterviewScheduler = ({ token, jobs }) => {
                                         <span style={{ fontSize: '0.75rem' }}>{c.applied_through}</span>
                                       </div></td>
                                       <td><div style={{ fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{c.email}</div></td>
-                                      <td><Phone size={12} style={{ opacity: 0.5 }} /> {c.phone}</td>
-                                      <td><MapPin size={12} style={{ opacity: 0.5 }} /> {c.current_location}</td>
-                                      <td>{c.current_ctc}</td>
-                                      <td>{c.experience_level}</td>
+                                      <td><div style={{ fontSize: '0.85rem' }}>{c.role_applied}</div></td>
+                                      <td><div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Phone size={12} style={{ opacity: 0.5 }} /> {c.phone}</div></td>
+                                      <td><div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><MapPin size={12} style={{ opacity: 0.5 }} /> {c.current_location}</div></td>
+                                      <td><div style={{ fontSize: '0.85rem' }}>{c.current_ctc}</div></td>
+                                      <td><div style={{ fontSize: '0.85rem' }}>{c.experience_level}</div></td>
+                                      <td><div style={{ fontSize: '0.75rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.qualification}>{c.qualification}</div></td>
+                                      <td><div style={{ fontSize: '0.75rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.skills}>{c.skills}</div></td>
                                       <td><span style={{ padding: '0.2rem 0.5rem', borderRadius: '1rem', background: c.score >= 80 ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: c.score >= 80 ? '#10b981' : '#f59e0b', fontWeight: 600, fontSize: '0.85rem' }}>{c.score}%</span></td>
                                       <td>{c.resume_url ? <a href={c.resume_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}><FileText size={14} /></a> : '—'}</td>
-                                      <td><span className={`badge status-${c.status}`}>{c.status}</span></td>
+                                      <td>
+                                        <select
+                                          value={c.status}
+                                          onChange={(e) => handleStatusChange(c.id, e.target.value, event.id)}
+                                          className={`status-select status-${c.status}`}
+                                          style={{ fontSize: '0.75rem', padding: '0.2rem' }}
+                                        >
+                                          <option value="applied">Applied</option>
+                                          <option value="shortlisted">Shortlisted</option>
+                                          <option value="hold">Hold</option>
+                                          <option value="rejected">Rejected</option>
+                                          <option value="selected">Selected</option>
+                                          <option value="accepted">Accepted</option>
+                                        </select>
+                                      </td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -379,8 +417,8 @@ const InterviewScheduler = ({ token, jobs }) => {
                         <div className="table-container">
                           <table>
                             <thead><tr>
-                              <th>Source</th><th>Name</th><th>Mobile</th><th>Location</th>
-                              <th>CTC</th><th>Experience</th><th>Score</th><th>Resume</th>
+                              <th>Source</th><th>Name</th><th>Role Applied</th><th>Mobile</th><th>Location</th>
+                              <th>CTC</th><th>Experience</th><th>Qualification</th><th>Skills</th><th>Score</th><th>Resume</th><th>Status</th>
                             </tr></thead>
                             <tbody>
                               {assigned.map(c => (
@@ -390,12 +428,30 @@ const InterviewScheduler = ({ token, jobs }) => {
                                     <span style={{ fontSize: '0.75rem' }}>{c.applied_through}</span>
                                   </div></td>
                                   <td><div style={{ fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{c.email}</div></td>
-                                  <td><Phone size={12} style={{ opacity: 0.5 }} /> {c.phone}</td>
-                                  <td><MapPin size={12} style={{ opacity: 0.5 }} /> {c.current_location}</td>
-                                  <td>{c.current_ctc}</td>
-                                  <td>{c.experience_level}</td>
+                                  <td><div style={{ fontSize: '0.85rem' }}>{c.role_applied}</div></td>
+                                  <td><div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Phone size={12} style={{ opacity: 0.5 }} /> {c.phone}</div></td>
+                                  <td><div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><MapPin size={12} style={{ opacity: 0.5 }} /> {c.current_location}</div></td>
+                                  <td><div style={{ fontSize: '0.85rem' }}>{c.current_ctc}</div></td>
+                                  <td><div style={{ fontSize: '0.85rem' }}>{c.experience_level}</div></td>
+                                  <td><div style={{ fontSize: '0.75rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.qualification}>{c.qualification}</div></td>
+                                  <td><div style={{ fontSize: '0.75rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.skills}>{c.skills}</div></td>
                                   <td><span style={{ padding: '0.2rem 0.5rem', borderRadius: '1rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 600, fontSize: '0.85rem' }}>{c.score}%</span></td>
                                   <td>{c.resume_url ? <a href={c.resume_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}><FileText size={14} /> <ExternalLink size={12} /></a> : '—'}</td>
+                                  <td>
+                                    <select
+                                      value={c.status}
+                                      onChange={(e) => handleStatusChange(c.id, e.target.value, event.id)}
+                                      className={`status-select status-${c.status}`}
+                                      style={{ fontSize: '0.75rem', padding: '0.2rem' }}
+                                    >
+                                      <option value="applied">Applied</option>
+                                      <option value="shortlisted">Shortlisted</option>
+                                      <option value="hold">Hold</option>
+                                      <option value="rejected">Rejected</option>
+                                      <option value="selected">Selected</option>
+                                      <option value="accepted">Accepted</option>
+                                    </select>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -419,10 +475,12 @@ const InterviewScheduler = ({ token, jobs }) => {
 const SCHEDULER_STYLES = `
 .interview-scheduler { padding: 0; }
 .interview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-.scheduler-layout { display: grid; grid-template-columns: 340px 1fr; gap: 2rem; align-items: start; }
-@media (max-width: 900px) { .scheduler-layout { grid-template-columns: 1fr; } }
+.scheduler-layout { display: flex; gap: 2rem; align-items: start; width: 100%; }
+@media (max-width: 1200px) { .scheduler-layout { flex-direction: column; } }
 
-.calendar-panel { padding: 1.5rem; position: sticky; top: 2rem; }
+.calendar-panel { width: 340px; flex-shrink: 0; padding: 1.5rem; position: sticky; top: 2rem; }
+.events-panel { flex: 1; display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+
 .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .cal-nav-btn { background: rgba(255,255,255,0.08); padding: 0.4rem 0.75rem; border-radius: 0.5rem; color: var(--text); font-size: 1rem; }
 .cal-nav-btn:hover { background: rgba(255,255,255,0.15); }
