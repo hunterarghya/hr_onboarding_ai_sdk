@@ -350,8 +350,8 @@ const InterviewScheduler = ({ token, jobs }) => {
                                       if (selectedCandidateIds.size === eligibleCandidates.length) setSelectedCandidateIds(new Set());
                                       else setSelectedCandidateIds(new Set(eligibleCandidates.map(c => c.id)));
                                     }} /></th>
-                                  <th>Source</th><th>Name</th><th>Role Applied</th><th>Mobile</th><th>Location</th>
-                                  <th>CTC</th><th>Experience</th><th>Qualification</th><th>Skills</th><th>Score</th><th>Resume</th><th>Status</th>
+                                  <th>Source</th><th>Name</th><th>Mail</th><th>Role</th><th>Mobile</th><th>Location</th>
+                                  <th>CTC</th><th>Experience</th><th>Score</th><th>Resume</th><th>Status</th>
                                 </tr></thead>
                                 <tbody>
                                   {eligibleCandidates.map(c => (
@@ -361,14 +361,13 @@ const InterviewScheduler = ({ token, jobs }) => {
                                         {c.applied_through === 'WhatsApp' ? <MessageCircle size={14} style={{ color: '#10b981' }} /> : <Mail size={14} style={{ color: '#ef4444' }} />}
                                         <span style={{ fontSize: '0.75rem' }}>{c.applied_through}</span>
                                       </div></td>
-                                      <td><div style={{ fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{c.email}</div></td>
+                                      <td><div style={{ fontWeight: 600 }}>{c.name}</div></td>
+                                      <td><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div></td>
                                       <td><div style={{ fontSize: '0.85rem' }}>{c.role_applied}</div></td>
                                       <td><div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Phone size={12} style={{ opacity: 0.5 }} /> {c.phone}</div></td>
                                       <td><div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><MapPin size={12} style={{ opacity: 0.5 }} /> {c.current_location}</div></td>
                                       <td><div style={{ fontSize: '0.85rem' }}>{c.current_ctc}</div></td>
                                       <td><div style={{ fontSize: '0.85rem' }}>{c.experience_level}</div></td>
-                                      <td><div style={{ fontSize: '0.75rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.qualification}>{c.qualification}</div></td>
-                                      <td><div style={{ fontSize: '0.75rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.skills}>{c.skills}</div></td>
                                       <td><span style={{ padding: '0.2rem 0.5rem', borderRadius: '1rem', background: c.score >= 80 ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: c.score >= 80 ? '#10b981' : '#f59e0b', fontWeight: 600, fontSize: '0.85rem' }}>{c.score}%</span></td>
                                       <td>{c.resume_url ? <a href={c.resume_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}><FileText size={14} /></a> : '—'}</td>
                                       <td>
@@ -409,16 +408,22 @@ const InterviewScheduler = ({ token, jobs }) => {
                       <div className="assigned-section">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                           <h4 style={{ color: 'var(--accent)' }}>Candidates Chosen for Interview</h4>
-                          <button onClick={() => startEditSelection(event.id)} className="btn-primary"
-                            style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)' }}>
-                            <Edit size={14} /> Edit
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button onClick={() => fetchAssignedCandidates(event.id)} title="Refresh List"
+                              style={{ padding: '0.4rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.4rem', color: 'var(--text-muted)' }}>
+                              <RefreshCw size={14} />
+                            </button>
+                            <button onClick={() => startEditSelection(event.id)} className="btn-primary"
+                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)' }}>
+                              <Edit size={14} /> Edit
+                            </button>
+                          </div>
                         </div>
                         <div className="table-container">
                           <table>
                             <thead><tr>
-                              <th>Source</th><th>Name</th><th>Role Applied</th><th>Mobile</th><th>Location</th>
-                              <th>CTC</th><th>Experience</th><th>Qualification</th><th>Skills</th><th>Score</th><th>Resume</th><th>Status</th>
+                              <th>Source</th><th>Name</th><th>Mail</th><th>Role</th><th>Mobile</th><th>Location</th>
+                              <th>CTC</th><th>Experience</th><th>Score</th><th>Resume</th><th>Status</th>
                             </tr></thead>
                             <tbody>
                               {assigned.map(c => (
@@ -427,14 +432,13 @@ const InterviewScheduler = ({ token, jobs }) => {
                                     {c.applied_through === 'WhatsApp' ? <MessageCircle size={14} style={{ color: '#10b981' }} /> : <Mail size={14} style={{ color: '#ef4444' }} />}
                                     <span style={{ fontSize: '0.75rem' }}>{c.applied_through}</span>
                                   </div></td>
-                                  <td><div style={{ fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{c.email}</div></td>
+                                  <td><div style={{ fontWeight: 600 }}>{c.name}</div></td>
+                                  <td><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div></td>
                                   <td><div style={{ fontSize: '0.85rem' }}>{c.role_applied}</div></td>
                                   <td><div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Phone size={12} style={{ opacity: 0.5 }} /> {c.phone}</div></td>
                                   <td><div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><MapPin size={12} style={{ opacity: 0.5 }} /> {c.current_location}</div></td>
                                   <td><div style={{ fontSize: '0.85rem' }}>{c.current_ctc}</div></td>
                                   <td><div style={{ fontSize: '0.85rem' }}>{c.experience_level}</div></td>
-                                  <td><div style={{ fontSize: '0.75rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.qualification}>{c.qualification}</div></td>
-                                  <td><div style={{ fontSize: '0.75rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.skills}>{c.skills}</div></td>
                                   <td><span style={{ padding: '0.2rem 0.5rem', borderRadius: '1rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 600, fontSize: '0.85rem' }}>{c.score}%</span></td>
                                   <td>{c.resume_url ? <a href={c.resume_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}><FileText size={14} /> <ExternalLink size={12} /></a> : '—'}</td>
                                   <td>
@@ -496,6 +500,24 @@ const SCHEDULER_STYLES = `
 .event-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; margin: 2px auto 0; }
 .cal-cell.selected .event-dot { background: white; }
 .add-event-btn { width: 100%; margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, var(--accent), #059669); }
+
+.status-select {
+  padding: 4px 8px;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  outline: none;
+}
+.status-applied { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border-color: rgba(59, 130, 246, 0.3); }
+.status-shortlisted { background: rgba(16, 185, 129, 0.2); color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
+.status-hold { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); }
+.status-rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+.status-selected { background: #065f46; color: #ffffff; border-color: #047857; text-transform: uppercase; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+.status-accepted { background: rgba(16, 185, 129, 0.1); color: var(--accent); border-color: var(--accent); }
 
 .events-panel { display: flex; flex-direction: column; gap: 1rem; }
 .event-form .form-row { display: flex; gap: 1rem; margin-bottom: 0; }

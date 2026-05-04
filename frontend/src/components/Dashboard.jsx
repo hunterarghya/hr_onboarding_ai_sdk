@@ -630,6 +630,7 @@ const Dashboard = ({ token, onLogout }) => {
               <option value="hold">Hold</option>
               <option value="rejected">Rejected</option>
               <option value="selected">Selected</option>
+              <option value="accepted">Accepted</option>
             </select>
           </div>
 
@@ -760,6 +761,7 @@ const Dashboard = ({ token, onLogout }) => {
                       <option value="hold">Hold</option>
                       <option value="rejected">Rejected</option>
                       <option value="selected">Selected</option>
+                      <option value="accepted">Accepted</option>
                     </select>
                   </td>
                 </tr>
@@ -874,6 +876,7 @@ const Dashboard = ({ token, onLogout }) => {
         .status-hold { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); }
         .status-rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
         .status-selected { background: #065f46; color: #ffffff; border-color: #047857; text-transform: uppercase; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+        .status-accepted { background: rgba(16, 185, 129, 0.1); color: var(--accent); border-color: var(--accent); }
       `}} />
     </div>
   );

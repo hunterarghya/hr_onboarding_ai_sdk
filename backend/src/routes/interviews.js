@@ -160,21 +160,6 @@ router.post('/events/:id/candidates/manual', async (req, res) => {
   }
 
   try {
-    // Clear existing assignments for this event
-    const currentResult = await pool.query(
-      'SELECT candidate_id FROM interview_candidates WHERE event_id = $1',
-      [id]
-    );
-    const currentIds = currentResult.rows.map(r => r.candidate_id);
-
-    // Revert old candidates back to 'shortlisted'
-    if (currentIds.length > 0) {
-      await pool.query(
-        `UPDATE candidates SET status = 'shortlisted' WHERE id = ANY($1::int[])`,
-        [currentIds]
-      );
-    }
-
     await pool.query('DELETE FROM interview_candidates WHERE event_id = $1', [id]);
 
     if (candidate_ids.length > 0) {
@@ -186,12 +171,6 @@ router.post('/events/:id/candidates/manual', async (req, res) => {
         `INSERT INTO interview_candidates (event_id, candidate_id) VALUES ${values}
          ON CONFLICT (event_id, candidate_id) DO NOTHING`,
         params
-      );
-
-      // Update candidate status to 'accepted' for interview
-      await pool.query(
-        `UPDATE candidates SET status = 'accepted' WHERE id = ANY($1::int[])`,
-        [candidate_ids]
       );
     }
 
@@ -216,22 +195,6 @@ router.patch('/events/:id/candidates/manual', async (req, res) => {
   }
 
   try {
-    // Get currently assigned candidates to revert their status
-    const currentResult = await pool.query(
-      'SELECT candidate_id FROM interview_candidates WHERE event_id = $1',
-      [id]
-    );
-    const currentIds = currentResult.rows.map(r => r.candidate_id);
-
-    // Revert old candidates back to 'shortlisted' (only those NOT in new list)
-    const removedIds = currentIds.filter(cid => !candidate_ids.includes(cid));
-    if (removedIds.length > 0) {
-      await pool.query(
-        `UPDATE candidates SET status = 'shortlisted' WHERE id = ANY($1::int[])`,
-        [removedIds]
-      );
-    }
-
     // Clear and re-insert
     await pool.query('DELETE FROM interview_candidates WHERE event_id = $1', [id]);
 
@@ -245,11 +208,6 @@ router.patch('/events/:id/candidates/manual', async (req, res) => {
         params
       );
 
-      // Update new candidates status
-      await pool.query(
-        `UPDATE candidates SET status = 'accepted' WHERE id = ANY($1::int[])`,
-        [candidate_ids]
-      );
     }
 
     res.json({ message: 'Candidates updated successfully', count: candidate_ids.length });
@@ -348,11 +306,7 @@ router.post('/events/:id/candidates/auto', async (req, res) => {
       insertParams
     );
 
-    // Update candidate status
-    await pool.query(
-      `UPDATE candidates SET status = 'accepted' WHERE id = ANY($1::int[])`,
-      [candidateIds]
-    );
+
 
     res.json({ message: 'Candidates auto-assigned successfully', count: candidateIds.length });
   } catch (err) {
@@ -421,11 +375,6 @@ router.post('/events/auto-assign-all', async (req, res) => {
         `INSERT INTO interview_candidates (event_id, candidate_id) VALUES ${values}
          ON CONFLICT (event_id, candidate_id) DO NOTHING`,
         params
-      );
-
-      await pool.query(
-        `UPDATE candidates SET status = 'accepted' WHERE id = ANY($1::int[])`,
-        [candidatesForEvent]
       );
 
       totalAssigned += candidatesForEvent.length;
