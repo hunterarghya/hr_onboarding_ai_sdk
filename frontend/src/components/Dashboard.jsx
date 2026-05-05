@@ -1,41 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, RefreshCw, LogOut, MessageCircle, Mail, MapPin, Phone, FileText, ExternalLink, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-const Dashboard = ({ token, onLogout }) => {
+const Dashboard = ({ token }) => {
   const [jobs, setJobs] = useState([]);
-  const [candidates, setCandidates] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [waStatus, setWaStatus] = useState({ status: 'not connected', qrCodeData: null });
-  const [waGroups, setWaGroups] = useState([]);
-  const [selectedGroups, setSelectedGroups] = useState([]);
-  const [showQR, setShowQR] = useState(false);
   const [submittingJob, setSubmittingJob] = useState(false);
   const [viewingJob, setViewingJob] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
   
-  // Pagination & Filtering States
-  const [candidatePagination, setCandidatePagination] = useState({
-    hasNextPage: false,
-    nextCursor: null,
-    currentCursor: null,
-    cursorStack: []
-  });
-  const [filters, setFilters] = useState({ 
-    role: '', 
-    source: '', 
-    status: '',
-    scoreSort: '',
-    minScore: 0,
-    maxScore: 100,
-    name: ''
-  });
-  const [searchTerm, setSearchTerm] = useState('');
-
-
   const [newJob, setNewJob] = useState({
     role: '',
     salary: '',
@@ -51,22 +25,7 @@ const Dashboard = ({ token, onLogout }) => {
 
   useEffect(() => {
     fetchJobs();
-    fetchCandidates();
-    const interval = setInterval(fetchWAStatus, 5000);
-    return () => clearInterval(interval);
   }, []);
-
-  // Refresh candidates when filters change
-  useEffect(() => {
-    fetchCandidates(null); // Reset to first page
-  }, [filters]);
-
-
-  useEffect(() => {
-    if (waStatus.status === 'ready') {
-      fetchWAGroups();
-    }
-  }, [waStatus.status]);
 
   const fetchJobs = async () => {
     try {
@@ -74,69 +33,6 @@ const Dashboard = ({ token, onLogout }) => {
       setJobs(response.data);
     } catch (err) {
       console.error('Error fetching jobs:', err);
-    }
-  };
-
-  const fetchCandidates = async (cursor = null) => {
-    setLoading(true);
-    try {
-      const params = { 
-        limit: 10, 
-        ...filters
-      };
-      if (cursor) params.cursor = cursor;
-      
-      const response = await axios.get(`${API_URL}/candidates`, { params });
-
-      setCandidates(response.data.data);
-      setCandidatePagination(prev => ({
-        ...prev,
-        hasNextPage: response.data.hasNextPage,
-        nextCursor: response.data.nextCursor,
-        currentCursor: cursor,
-        cursorStack: cursor === null ? [] : prev.cursorStack
-      }));
-    } catch (err) {
-      console.error('Error fetching candidates:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (candidatePagination.nextCursor) {
-      setCandidatePagination(prev => ({
-        ...prev,
-        cursorStack: [...prev.cursorStack, prev.currentCursor]
-      }));
-      fetchCandidates(candidatePagination.nextCursor);
-    }
-  };
-
-  const handlePrevPage = () => {
-    const stack = [...candidatePagination.cursorStack];
-    const prevCursor = stack.pop();
-    setCandidatePagination(prev => ({ ...prev, cursorStack: stack }));
-    fetchCandidates(prevCursor);
-  };
-
-
-  const fetchWAStatus = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/whatsapp/status`);
-      setWaStatus(response.data);
-      // Removed automatic setShowQR(true)
-    } catch (err) {
-      console.error('Error fetching WA status:', err);
-    }
-  };
-
-  const fetchWAGroups = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/whatsapp/groups`);
-      setWaGroups(response.data);
-    } catch (err) {
-      console.error('Error fetching WA groups:', err);
     }
   };
 
@@ -189,34 +85,6 @@ const Dashboard = ({ token, onLogout }) => {
     }
   };
 
-  const handleScan = async () => {
-    setScanning(true);
-    try {
-      const response = await axios.post(`${API_URL}/candidates/scan`, {
-        whatsappGroupIds: selectedGroups
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert(response.data.message);
-      fetchCandidates();
-    } catch (err) {
-      console.error('Error scanning:', err);
-      alert('Scanning failed. Check logs.');
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  const handleStatusChange = async (candidateId, newStatus) => {
-    try {
-      await axios.patch(`${API_URL}/candidates/${candidateId}/status`, { status: newStatus });
-      fetchCandidates();
-    } catch (err) {
-      console.error('Error updating status:', err);
-      alert('Status update failed');
-    }
-  };
-
   const updateCriteriaWeight = (jobState, setJobState, key, value) => {
     const weights = { ...(jobState.criteria_weights || {}) };
     if (value === 0) {
@@ -227,105 +95,8 @@ const Dashboard = ({ token, onLogout }) => {
     setJobState({ ...jobState, criteria_weights: weights });
   };
 
-  const getStatusColor = () => {
-    switch (waStatus.status) {
-      case 'ready': return '#10b981';
-      case 'authenticated': return '#3b82f6';
-      case 'qr': return '#f59e0b';
-      case 'error': return '#ef4444';
-      default: return 'var(--text-muted)';
-    }
-  };
-
-  const toggleGroup = (groupId) => {
-    setSelectedGroups(prev =>
-      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
-    );
-  };
-
-  const isScanDisabled = scanning || (selectedGroups.length > 0 && waStatus.status !== 'ready');
-
   return (
     <div className="container">
-      <nav className="nav">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>HR Dashboard</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '2rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: getStatusColor() }}></div>
-              <span style={{ fontWeight: '500' }}>WhatsApp: {waStatus.status}</span>
-            </div>
-            {waStatus.status !== 'ready' && waStatus.status !== 'authenticated' && (
-              <button
-                onClick={() => setShowQR(true)}
-                className="btn-primary"
-                style={{ padding: '4px 12px', fontSize: '0.75rem', backgroundColor: 'var(--primary)' }}
-              >
-                {waStatus.status === 'qr' ? 'View QR Code' : 'Connect WhatsApp'}
-              </button>
-            )}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {waStatus.status === 'ready' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ position: 'relative' }}>
-                <div
-                  style={{ width: '220px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)', fontSize: '0.85rem', cursor: 'pointer', minHeight: '36px' }}
-                  onClick={(e) => { e.currentTarget.nextSibling.style.display = e.currentTarget.nextSibling.style.display === 'block' ? 'none' : 'block'; }}
-                >
-                  {selectedGroups.length === 0 ? 'Select Groups...' : `${selectedGroups.length} group(s) selected`}
-                </div>
-                <div style={{
-                  display: 'none',
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  background: '#121212',
-                  border: '1px solid var(--border)',
-                  borderRadius: '0.5rem',
-                  zIndex: 100,
-                  maxHeight: '400px',
-                  overflowY: 'auto',
-                  marginTop: '8px',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)'
-                }}>
-                  {waGroups.map(g => (
-                    <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <input type="checkbox" checked={selectedGroups.includes(g.id)} onChange={() => toggleGroup(g.id)} />
-                      {g.name}
-                    </label>
-                  ))}
-                  {waGroups.length === 0 && <div style={{ padding: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>No groups found</div>}
-                </div>
-              </div>
-              <button onClick={fetchWAGroups} title="Refresh Groups" style={{ padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(255,255,255,0.1)' }}>
-                <RefreshCw size={16} />
-              </button>
-            </div>
-          )}
-          <button onClick={handleScan} disabled={isScanDisabled} className="btn-primary" style={{ backgroundColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {scanning ? <RefreshCw className="spin" size={18} /> : <Search size={18} />}
-            {scanning ? 'Processing...' : 'Scan Mail & WhatsApp'}
-          </button>
-          <button onClick={onLogout} className="btn-primary" style={{ backgroundColor: 'transparent', border: '1px solid var(--border)' }}>
-            <LogOut size={18} />
-          </button>
-        </div>
-      </nav>
-
-      {showQR && waStatus.qrCodeData && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
-          <div className="glass-card" style={{ textAlign: 'center' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Scan QR for WhatsApp</h3>
-            <img src={waStatus.qrCodeData} alt="WhatsApp QR" style={{ borderRadius: '0.5rem', marginBottom: '1rem' }} />
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Open WhatsApp on your phone and scan</p>
-            <button onClick={() => setShowQR(false)} style={{ marginTop: '1rem' }}>Close</button>
-          </div>
-        </div>
-      )}
-
       <div className="grid">
         {/* Job Creation Section */}
         <section className="glass-card">
@@ -580,222 +351,8 @@ const Dashboard = ({ token, onLogout }) => {
         </div>
       )}
 
-      {/* Candidates Table */}
-      <section className="glass-card" style={{ marginTop: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Search size={20} /> Shortlisted Candidates
-          </h3>
-          <button onClick={() => fetchCandidates(null)} title="Refresh Table" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem' }}>
-            <RefreshCw size={16} className={loading ? 'spin' : ''} />
-          </button>
-        </div>
-
-        <div className="filter-bar" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '300px' }}>
-              <input 
-                type="text" 
-                placeholder="Search by name..." 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && setFilters({ ...filters, name: searchTerm })}
-                style={{ flex: 1 }}
-              />
-              <button 
-                onClick={() => setFilters({ ...filters, name: searchTerm })}
-                className="btn-primary"
-                style={{ width: 'auto', padding: '0 1rem' }}
-              >
-                <Search size={18} />
-              </button>
-            </div>
-
-            <select className="filter-select" value={filters.role} onChange={e => setFilters({ ...filters, role: e.target.value })}>
-              <option value="">All Roles</option>
-              <option value="Open">Open</option>
-              {jobs.map(j => <option key={j.id} value={j.role}>{j.role}</option>)}
-            </select>
-            
-            <select className="filter-select" value={filters.source} onChange={e => setFilters({ ...filters, source: e.target.value })}>
-              <option value="">All Sources</option>
-              <option value="Gmail">Gmail</option>
-              <option value="WhatsApp">WhatsApp</option>
-            </select>
-            
-            <select className="filter-select" value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}>
-              <option value="">All Statuses</option>
-              <option value="applied">Applied</option>
-              <option value="shortlisted">Shortlisted</option>
-              <option value="hold">Hold</option>
-              <option value="rejected">Rejected</option>
-              <option value="selected">Selected</option>
-              <option value="accepted">Accepted</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Score Sort:</span>
-              <select 
-                className="filter-select" 
-                style={{ minWidth: '160px' }}
-                value={filters.scoreSort} 
-                onChange={e => setFilters({ ...filters, scoreSort: e.target.value })}
-              >
-                <option value="">Newest First</option>
-                <option value="highToLow">High to Low</option>
-                <option value="lowToHigh">Low to High</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Score Range:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input 
-                  type="number" 
-                  min="0" max="100" 
-                  value={filters.minScore} 
-                  onChange={e => setFilters({ ...filters, minScore: e.target.value })}
-                  style={{ width: '70px', padding: '0.4rem', textAlign: 'center' }}
-                />
-                <span style={{ color: 'var(--text-muted)' }}>to</span>
-                <input 
-                  type="number" 
-                  min="0" max="100" 
-                  value={filters.maxScore} 
-                  onChange={e => setFilters({ ...filters, maxScore: e.target.value })}
-                  style={{ width: '70px', padding: '0.4rem', textAlign: 'center' }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Source</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Mobile</th>
-                <th>Location</th>
-                <th>CTC</th>
-                <th>Experience</th>
-                <th>Score</th>
-                <th>Resume</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {candidates.map(c => (
-                <tr key={c.id}>
-                  <td>{c.id}</td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {c.applied_through === 'WhatsApp' ? (
-                        <span title="WhatsApp" style={{ color: '#10b981', display: 'flex' }}><MessageCircle size={16} /></span>
-                      ) : (
-                        <span title="Gmail" style={{ color: '#ef4444', display: 'flex' }}><Mail size={16} /></span>
-                      )}
-                      <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{c.applied_through}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: '600' }}>{c.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div>
-                  </td>
-                  <td>{c.role_applied}</td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
-                      <Phone size={12} opacity={0.5} /> {c.phone}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
-                      <MapPin size={12} opacity={0.5} /> {c.current_location}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>{c.current_ctc}</div>
-                  </td>
-                  <td>{c.experience_level}</td>
-                  <td>
-                    <span style={{
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '1rem',
-                      background: c.score >= 80 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                      color: c.score >= 80 ? '#10b981' : '#f59e0b',
-                      fontSize: '0.875rem',
-                      fontWeight: '600'
-                    }}>
-                      {c.score}%
-                    </span>
-                  </td>
-                  <td>
-                    {c.resume_url ? (
-                      <a
-                        href={c.resume_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-primary"
-                        style={{ padding: '4px 8px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <FileText size={14} /> PDF <ExternalLink size={12} />
-                      </a>
-                    ) : (
-                      <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>No PDF</span>
-                    )}
-                  </td>
-                  <td>
-                    <select
-                      value={c.status}
-                      onChange={(e) => handleStatusChange(c.id, e.target.value)}
-                      className={`status-select status-${c.status}`}
-                    >
-                      <option value="applied">Applied</option>
-                      <option value="shortlisted">Shortlisted</option>
-                      <option value="hold">Hold</option>
-                      <option value="rejected">Rejected</option>
-                      <option value="selected">Selected</option>
-                      <option value="accepted">Accepted</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {candidates.length === 0 && !loading && (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-              No candidates found yet. Run "Scan Mail" to search your inbox.
-            </div>
-          )}
-        </div>
-
-        <div className="pagination-controls">
-          <button onClick={handlePrevPage} disabled={candidatePagination.cursorStack.length === 0} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', opacity: candidatePagination.cursorStack.length === 0 ? 0.5 : 1 }}>
-            <ChevronLeft size={16} /> Previous
-          </button>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Page {candidatePagination.cursorStack.length + 1}</span>
-          <button onClick={handleNextPage} disabled={!candidatePagination.hasNextPage} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', opacity: !candidatePagination.hasNextPage ? 0.5 : 1 }}>
-            Next <ChevronRight size={16} />
-          </button>
-        </div>
-      </section>
-
-
       <style dangerouslySetInnerHTML={{
         __html: `
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .spin {
-          animation: spin 1s linear infinite;
-        }
         .toggle-container {
           display: flex;
           align-items: center;
@@ -860,23 +417,6 @@ const Dashboard = ({ token, onLogout }) => {
           filter: invert(1);
           cursor: pointer;
         }
-        .status-select {
-          padding: 4px 12px;
-          border-radius: 1rem;
-          font-size: 0.75rem;
-          font-weight: 600;
-          cursor: pointer;
-          border: 1px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.05);
-          color: var(--text);
-          outline: none;
-        }
-        .status-applied { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border-color: rgba(59, 130, 246, 0.3); }
-        .status-shortlisted { background: rgba(16, 185, 129, 0.2); color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
-        .status-hold { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); }
-        .status-rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
-        .status-selected { background: #065f46; color: #ffffff; border-color: #047857; text-transform: uppercase; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
-        .status-accepted { background: rgba(16, 185, 129, 0.1); color: var(--accent); border-color: var(--accent); }
       `}} />
     </div>
   );

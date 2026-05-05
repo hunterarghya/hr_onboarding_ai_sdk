@@ -190,10 +190,7 @@ const InterviewScheduler = ({ token, jobs }) => {
 
   return (
     <div className="interview-scheduler">
-      <div className="interview-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Calendar size={24} /> Interview Scheduler
-        </h2>
+      <div className="interview-header" style={{ justifyContent: 'flex-end', marginBottom: '2rem' }}>
         <button onClick={handleSyncCalendar} disabled={syncing} className="btn-primary"
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
           <RefreshCw size={16} className={syncing ? 'spin' : ''} />

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import InterviewScheduler from './components/InterviewScheduler';
+import Candidates from './components/Candidates';
+import Scanners from './components/Scanners';
 import axios from 'axios';
-import { LayoutDashboard, CalendarCheck, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Briefcase, Zap, Users, CalendarCheck, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -37,7 +39,9 @@ function App() {
   if (!token) return <Login onLoginSuccess={setToken} />;
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Jobs', icon: Briefcase },
+    { id: 'scanners', label: 'Scanners', icon: Zap },
+    { id: 'candidates', label: 'Candidates', icon: Users },
     { id: 'interviews', label: 'Interviews', icon: CalendarCheck },
   ];
 
@@ -76,6 +80,12 @@ function App() {
       <main className="main-content">
         {activeSection === 'dashboard' && (
           <Dashboard token={token} onLogout={handleLogout} />
+        )}
+        {activeSection === 'scanners' && (
+          <Scanners token={token} />
+        )}
+        {activeSection === 'candidates' && (
+          <Candidates token={token} jobs={jobs} />
         )}
         {activeSection === 'interviews' && (
           <InterviewScheduler token={token} jobs={jobs} />
