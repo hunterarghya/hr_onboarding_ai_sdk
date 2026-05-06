@@ -61,7 +61,11 @@ const initDb = async () => {
         resume_url TEXT,
         applied_through VARCHAR(50),
         current_location VARCHAR(255),
-        current_ctc VARCHAR(100)
+        current_ctc VARCHAR(100),
+        offered_role VARCHAR(255),
+        offered_salary VARCHAR(100),
+        offered_location VARCHAR(255),
+        joining_date DATE
       );
 
       CREATE TABLE IF NOT EXISTS scan_timestamps (
@@ -94,10 +98,14 @@ const initDb = async () => {
     `);
     console.log('Database tables initialized');
 
-    // Add criteria_weights column if it doesn't exist (migration safety)
+    // Migration safety
     await pool.query(`
       DO $$ BEGIN
         ALTER TABLE job_roles ADD COLUMN IF NOT EXISTS criteria_weights JSONB DEFAULT '{}';
+        ALTER TABLE candidates ADD COLUMN IF NOT EXISTS offered_role VARCHAR(255);
+        ALTER TABLE candidates ADD COLUMN IF NOT EXISTS offered_salary VARCHAR(100);
+        ALTER TABLE candidates ADD COLUMN IF NOT EXISTS offered_location VARCHAR(255);
+        ALTER TABLE candidates ADD COLUMN IF NOT EXISTS joining_date DATE;
       EXCEPTION WHEN duplicate_column THEN NULL;
       END $$;
     `);

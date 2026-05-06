@@ -256,7 +256,7 @@ router.post('/events/:id/candidates/auto', async (req, res) => {
 
       query = `
         SELECT id FROM candidates
-        WHERE status IN ('shortlisted', 'applied', 'accepted')
+        WHERE status IN ('shortlisted', 'applied', 'marked')
           AND (role_applied IS NULL OR role_applied NOT IN (${activeRolesList.map((_, i) => `$${i + 1}`).join(',')}))
       `;
       params = [...activeRolesList];
@@ -273,7 +273,7 @@ router.post('/events/:id/candidates/auto', async (req, res) => {
       query = `
         SELECT id FROM candidates
         WHERE role_applied = $1
-          AND status IN ('shortlisted', 'applied', 'accepted')
+          AND status IN ('shortlisted', 'applied', 'marked')
       `;
       params = [event.role];
       let paramIdx = 2;
@@ -344,7 +344,7 @@ router.post('/events/auto-assign-all', async (req, res) => {
     const candidatesResult = await pool.query(
       `SELECT id, score FROM candidates
        WHERE role_applied = $1
-         AND status IN ('shortlisted', 'applied', 'accepted')
+         AND status IN ('shortlisted', 'applied', 'marked')
        ORDER BY score DESC`,
       [role]
     );
@@ -559,7 +559,7 @@ router.get('/eligible-candidates/:eventId', async (req, res) => {
         const placeholders = activeRolesList.map((_, i) => `$${i + 1}`).join(',');
         result = await pool.query(
           `SELECT * FROM candidates 
-           WHERE status IN ('shortlisted', 'applied', 'accepted')
+           WHERE status IN ('shortlisted', 'applied', 'marked')
              AND (role_applied IS NULL OR role_applied NOT IN (${placeholders}))
            ORDER BY score DESC`,
           activeRolesList
@@ -567,12 +567,12 @@ router.get('/eligible-candidates/:eventId', async (req, res) => {
       } else {
         // No active roles at all — show all candidates
         result = await pool.query(
-          `SELECT * FROM candidates WHERE status IN ('shortlisted', 'applied', 'accepted') ORDER BY score DESC`
+          `SELECT * FROM candidates WHERE status IN ('shortlisted', 'applied', 'marked') ORDER BY score DESC`
         );
       }
     } else {
       result = await pool.query(
-        `SELECT * FROM candidates WHERE role_applied = $1 AND status IN ('shortlisted', 'applied', 'accepted') ORDER BY score DESC`,
+        `SELECT * FROM candidates WHERE role_applied = $1 AND status IN ('shortlisted', 'applied', 'marked') ORDER BY score DESC`,
         [role]
       );
     }

@@ -214,7 +214,7 @@ router.post('/scan', async (req, res) => {
 router.get('/', async (req, res) => {
   const { limit = 10, cursor, role, status, source, name, minScore, maxScore, scoreSort } = req.query;
   const pageSize = parseInt(limit);
-  
+
   try {
     let query = 'SELECT * FROM candidates WHERE 1=1';
     const params = [];
@@ -280,10 +280,10 @@ router.get('/', async (req, res) => {
 
     const result = await pool.query(query, params);
     const rows = result.rows;
-    
+
     const hasNextPage = rows.length > pageSize;
     const data = hasNextPage ? rows.slice(0, pageSize) : rows;
-    
+
     let nextCursor = null;
     if (hasNextPage) {
       const lastItem = data[data.length - 1];
@@ -305,12 +305,96 @@ router.get('/', async (req, res) => {
 // Update Candidate Status
 router.patch('/:id/status', async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, offered_role, offered_salary, offered_location, joining_date } = req.body;
   try {
-    await pool.query('UPDATE candidates SET status = $1 WHERE id = $2', [status, id]);
+    if (status === 'selected') {
+      // All offer fields are mandatory for 'selected'
+      if (!offered_role || !offered_salary || !offered_location || !joining_date) {
+        return res.status(400).json({ error: 'All offer fields (offered_role, offered_salary, offered_location, joining_date) are required for "selected" status.' });
+      }
+      await pool.query(
+        'UPDATE candidates SET status = $1, offered_role = $2, offered_salary = $3, offered_location = $4, joining_date = $5 WHERE id = $6',
+        [status, offered_role, offered_salary, offered_location, joining_date, id]
+      );
+    } else {
+      await pool.query('UPDATE candidates SET status = $1 WHERE id = $2', [status, id]);
+    }
     res.json({ message: 'Status updated successfully' });
   } catch (err) {
     console.error('Error updating status:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Get distinct filter values for selected candidates
+router.get('/selected/filters', async (req, res) => {
+  try {
+    const roles = await pool.query('SELECT DISTINCT offered_role FROM candidates WHERE status = $1 AND offered_role IS NOT NULL ORDER BY offered_role', ['selected']);
+    const locations = await pool.query('SELECT DISTINCT offered_location FROM candidates WHERE status = $1 AND offered_location IS NOT NULL ORDER BY offered_location', ['selected']);
+    res.json({
+      roles: roles.rows.map(r => r.offered_role),
+      locations: locations.rows.map(r => r.offered_location)
+    });
+  } catch (err) {
+    console.error('Error fetching selected filters:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Get Selected Candidates (with offer details, filtering & cursor pagination)
+router.get('/selected', async (req, res) => {
+  const { limit = 10, cursor, offered_role, offered_location, dateFrom, dateTo } = req.query;
+  const pageSize = parseInt(limit);
+
+  try {
+    let query = 'SELECT id, name, email, phone, offered_role, offered_salary, offered_location, joining_date, status FROM candidates WHERE status = $1';
+    const params = ['selected'];
+    let paramIndex = 2;
+
+    // Filters
+    if (offered_role) {
+      query += ` AND offered_role = $${paramIndex++}`;
+      params.push(offered_role);
+    }
+    if (offered_location) {
+      query += ` AND offered_location = $${paramIndex++}`;
+      params.push(offered_location);
+    }
+    if (dateFrom) {
+      query += ` AND joining_date >= $${paramIndex++}`;
+      params.push(dateFrom);
+    }
+    if (dateTo) {
+      query += ` AND joining_date <= $${paramIndex++}`;
+      params.push(dateTo);
+    }
+
+    // Cursor Logic (keyset pagination on joining_date ASC, id ASC)
+    if (cursor) {
+      const [cDate, cId] = cursor.split('|');
+      query += ` AND (joining_date > $${paramIndex} OR (joining_date = $${paramIndex} AND id > $${paramIndex + 1}))`;
+      params.push(cDate, cId);
+      paramIndex += 2;
+    }
+
+    query += ` ORDER BY joining_date ASC, id ASC LIMIT $${paramIndex}`;
+    params.push(pageSize + 1);
+
+    const result = await pool.query(query, params);
+    const rows = result.rows;
+
+    const hasNextPage = rows.length > pageSize;
+    const data = hasNextPage ? rows.slice(0, pageSize) : rows;
+
+    let nextCursor = null;
+    if (hasNextPage) {
+      const lastItem = data[data.length - 1];
+      nextCursor = `${lastItem.joining_date ? new Date(lastItem.joining_date).toISOString().split('T')[0] : ''}|${lastItem.id}`;
+    }
+
+    res.json({ data, nextCursor, hasNextPage });
+  } catch (err) {
+    console.error('Error fetching selected candidates:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

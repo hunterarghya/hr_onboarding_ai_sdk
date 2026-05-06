@@ -21,6 +21,13 @@ const InterviewScheduler = ({ token, jobs }) => {
   const [editingEventId, setEditingEventId] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectionModal, setSelectionModal] = useState({
+    isOpen: false,
+    candidateId: null,
+    candidateName: '',
+    eventId: null,
+    form: { offered_role: '', offered_salary: '', offered_location: '', joining_date: '' }
+  });
 
   const [newEvent, setNewEvent] = useState({
     role: '', start_time: '09:00', end_time: '13:00',
@@ -130,31 +137,77 @@ const InterviewScheduler = ({ token, jobs }) => {
       const method = editingEventId ? 'patch' : 'post';
       await axios[method](`${API_URL}/interviews/events/${eventId}/candidates/manual`,
         { candidate_ids: ids }, { headers });
-      
+
       // Refresh the specific assigned list first
       await fetchAssignedCandidates(eventId);
-      
+
       // Refresh global events to update badges (e.g. "2 assigned")
       await fetchEvents();
-      
+
       setSelectionMode(null);
       setEditingEventId(null);
-    } catch (err) { 
-      console.error('Error saving selection:', err); 
-      alert('Failed to save candidates. Check console for details.'); 
+    } catch (err) {
+      console.error('Error saving selection:', err);
+      alert('Failed to save candidates. Check console for details.');
     }
   };
 
   const handleStatusChange = async (candidateId, newStatus, eventId) => {
+    if (newStatus === 'selected') {
+      // Find candidate from eligible or assigned lists
+      let candidate = eligibleCandidates.find(c => c.id === candidateId);
+      if (!candidate) {
+        const assigned = eventCandidates[eventId] || [];
+        candidate = assigned.find(c => c.id === candidateId);
+      }
+      setSelectionModal({
+        isOpen: true,
+        candidateId,
+        candidateName: candidate?.name || '',
+        eventId,
+        form: {
+          offered_role: candidate?.role_applied || '',
+          offered_salary: '',
+          offered_location: candidate?.current_location || '',
+          joining_date: ''
+        }
+      });
+      return;
+    }
+
     try {
       await axios.patch(`${API_URL}/candidates/${candidateId}/status`, { status: newStatus }, { headers });
-      // Refresh both assigned and eligible lists
       if (eventId) await fetchAssignedCandidates(eventId);
       if (selectionMode === 'manual') await fetchEligible(eventId);
     } catch (err) {
       console.error('Error updating status:', err);
       alert('Status update failed');
     }
+  };
+
+  const submitSelection = async () => {
+    const { offered_role, offered_salary, offered_location, joining_date } = selectionModal.form;
+    if (!offered_role || !offered_salary || !offered_location || !joining_date) {
+      alert('All fields are required to mark as Selected.');
+      return;
+    }
+    try {
+      await axios.patch(`${API_URL}/candidates/${selectionModal.candidateId}/status`, {
+        status: 'selected',
+        ...selectionModal.form
+      }, { headers });
+      const eid = selectionModal.eventId;
+      setSelectionModal({ isOpen: false, candidateId: null, candidateName: '', eventId: null, form: { offered_role: '', offered_salary: '', offered_location: '', joining_date: '' } });
+      if (eid) await fetchAssignedCandidates(eid);
+      if (selectionMode === 'manual' && eid) await fetchEligible(eid);
+    } catch (err) {
+      console.error('Error submitting selection:', err);
+      alert('Failed to save selection details.');
+    }
+  };
+
+  const updateModalForm = (key, value) => {
+    setSelectionModal(prev => ({ ...prev, form: { ...prev.form, [key]: value } }));
   };
 
   const handleAutoAssign = async (eventId) => {
@@ -378,8 +431,8 @@ const InterviewScheduler = ({ token, jobs }) => {
                                           <option value="shortlisted">Shortlisted</option>
                                           <option value="hold">Hold</option>
                                           <option value="rejected">Rejected</option>
+                                          <option value="marked">Mark as Selected</option>
                                           <option value="selected">Selected</option>
-                                          <option value="accepted">Accepted</option>
                                         </select>
                                       </td>
                                     </tr>
@@ -449,8 +502,8 @@ const InterviewScheduler = ({ token, jobs }) => {
                                       <option value="shortlisted">Shortlisted</option>
                                       <option value="hold">Hold</option>
                                       <option value="rejected">Rejected</option>
+                                      <option value="marked">Mark as Selected</option>
                                       <option value="selected">Selected</option>
-                                      <option value="accepted">Accepted</option>
                                     </select>
                                   </td>
                                 </tr>
@@ -467,6 +520,40 @@ const InterviewScheduler = ({ token, jobs }) => {
           })}
         </div>
       </div>
+
+      {/* Selection Details Modal */}
+      {selectionModal.isOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div className="glass-card" style={{ maxWidth: '500px', width: '90%', padding: '2rem' }}>
+            <h3 style={{ marginBottom: '0.5rem', color: 'var(--accent)' }}>Finalize Selection</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+              Enter offer details for <strong style={{ color: 'var(--text)' }}>{selectionModal.candidateName}</strong>. All fields are required.
+            </p>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              <div className="input-group">
+                <label>Offered Role</label>
+                <input value={selectionModal.form.offered_role} onChange={e => updateModalForm('offered_role', e.target.value)} placeholder="e.g. Senior Frontend Engineer" />
+              </div>
+              <div className="input-group">
+                <label>Salary Offered</label>
+                <input value={selectionModal.form.offered_salary} onChange={e => updateModalForm('offered_salary', e.target.value)} placeholder="e.g. ₹12,00,000 / year" />
+              </div>
+              <div className="input-group">
+                <label>Location</label>
+                <input value={selectionModal.form.offered_location} onChange={e => updateModalForm('offered_location', e.target.value)} placeholder="e.g. Remote / Bangalore" />
+              </div>
+              <div className="input-group">
+                <label>Joining Date</label>
+                <input type="date" value={selectionModal.form.joining_date} onChange={e => updateModalForm('joining_date', e.target.value)} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+              <button onClick={submitSelection} className="btn-primary" style={{ flex: 1 }}>Confirm Selection</button>
+              <button onClick={() => setSelectionModal({ isOpen: false, candidateId: null, candidateName: '', eventId: null, form: { offered_role: '', offered_salary: '', offered_location: '', joining_date: '' } })} className="btn-primary" style={{ flex: 1, background: 'rgba(255,255,255,0.1)' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: SCHEDULER_STYLES }} />
     </div>
@@ -513,8 +600,8 @@ const SCHEDULER_STYLES = `
 .status-shortlisted { background: rgba(16, 185, 129, 0.2); color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
 .status-hold { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); }
 .status-rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+.status-marked { background: rgba(168, 85, 247, 0.2); color: #a855f7; border-color: rgba(168, 85, 247, 0.3); }
 .status-selected { background: #065f46; color: #ffffff; border-color: #047857; text-transform: uppercase; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
-.status-accepted { background: rgba(16, 185, 129, 0.1); color: var(--accent); border-color: var(--accent); }
 
 .events-panel { display: flex; flex-direction: column; gap: 1rem; }
 .event-form .form-row { display: flex; gap: 1rem; margin-bottom: 0; }
