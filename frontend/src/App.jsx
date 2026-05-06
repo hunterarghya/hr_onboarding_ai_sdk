@@ -4,8 +4,9 @@ import Dashboard from './components/Dashboard';
 import InterviewScheduler from './components/InterviewScheduler';
 import Candidates from './components/Candidates';
 import Scanners from './components/Scanners';
+import Templates from './components/Templates';
 import axios from 'axios';
-import { Briefcase, Zap, Users, CalendarCheck, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Briefcase, Zap, Users, CalendarCheck, FileText, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -42,6 +43,7 @@ function App() {
     { id: 'dashboard', label: 'Jobs', icon: Briefcase },
     { id: 'scanners', label: 'Scanners', icon: Zap },
     { id: 'candidates', label: 'Candidates', icon: Users },
+    { id: 'templates', label: 'Templates', icon: FileText },
     { id: 'interviews', label: 'Interviews', icon: CalendarCheck },
   ];
 
@@ -86,6 +88,9 @@ function App() {
         )}
         {activeSection === 'candidates' && (
           <Candidates token={token} jobs={jobs} />
+        )}
+        {activeSection === 'templates' && (
+          <Templates token={token} />
         )}
         {activeSection === 'interviews' && (
           <InterviewScheduler token={token} jobs={jobs} />

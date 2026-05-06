@@ -9,6 +9,7 @@ const jobRoutes = require('./routes/jobs');
 const candidateRoutes = require('./routes/candidates');
 const whatsappRoutes = require('./routes/whatsapp');
 const interviewRoutes = require('./routes/interviews');
+const templateRoutes = require('./routes/templates');
 const { initWhatsApp } = require('./services/whatsapp');
 const { initCollection, upsertJobDescription } = require('./services/vectorMatch');
 
@@ -97,7 +98,30 @@ const initDb = async () => {
         assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(event_id, candidate_id)
       );
+
+      CREATE TABLE IF NOT EXISTS email_templates (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        subject VARCHAR(500) NOT NULL DEFAULT '',
+        body TEXT NOT NULL DEFAULT '',
+        type VARCHAR(50) NOT NULL DEFAULT 'custom',
+        is_default BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
+
+    // Seed default templates (only if none exist)
+    const templateCount = await pool.query('SELECT COUNT(*) FROM email_templates WHERE is_default = true');
+    if (parseInt(templateCount.rows[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO email_templates (name, subject, body, type, is_default) VALUES
+        ('Rejection Mail', 'Update on Your Application at Ripplewalk', '<p>Hello {{name}},</p><p>Thank you for taking the time to apply at <strong>Ripplewalk</strong> for the <strong>{{role_applied}}</strong> position. After careful consideration, we have decided to move forward with other candidates.</p><p>We truly appreciate your interest and encourage you to apply again in the future.</p><p>Best regards,<br/>Team Ripplewalk</p>', 'rejection', true),
+        ('Interview Invitation', 'Interview Invitation - {{role_applied}} at Ripplewalk', '<p>Hello {{name}},</p><p>We are pleased to inform you that you have been shortlisted for an interview for the <strong>{{role_applied}}</strong> position.</p><p>📅 <strong>Date:</strong> {{interview_date}}<br/>🕐 <strong>Time:</strong> {{interview_start_time}} - {{interview_end_time}}<br/>📍 <strong>Mode:</strong> {{interview_mode}}<br/>🔗 <strong>Venue/Link:</strong> {{venue_or_link}}</p><p>Please be on time and bring all necessary documents.</p><p>Best regards,<br/>Team Ripplewalk</p>', 'invite', true),
+        ('Offer Letter', 'Offer of Employment - {{offered_role}} at Ripplewalk', '<p>Hello {{name}},</p><p>We are delighted to inform you that you have been selected as <strong>{{offered_role}}</strong> at <strong>Ripplewalk</strong>!</p><p>💰 <strong>CTC:</strong> {{offered_salary}}<br/>📍 <strong>Location:</strong> {{offered_location}}<br/>📅 <strong>Joining Date:</strong> {{joining_date}}</p><p>We look forward to having you on our team. Please confirm your acceptance at the earliest.</p><p>Congratulations!<br/>Team Ripplewalk</p>', 'offer', true)
+      `);
+      console.log('Default email templates seeded');
+    }
     console.log('Database tables initialized');
 
     // Migration safety
@@ -135,6 +159,7 @@ app.use('/jobs', jobRoutes);
 app.use('/candidates', candidateRoutes);
 app.use('/whatsapp', whatsappRoutes);
 app.use('/interviews', interviewRoutes);
+app.use('/templates', templateRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
