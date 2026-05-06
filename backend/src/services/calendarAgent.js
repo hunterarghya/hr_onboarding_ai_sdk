@@ -56,6 +56,8 @@ const parseCalendarEvent = async (calendarEvent, activeRoles) => {
     Event Title: ${summary}
     Description: ${description}
     Event Time (UTC): ${startDateTime} to ${endDateTime}
+    Location: ${calendarEvent.location || 'Not specified'}
+    Conference/Meet Link: ${calendarEvent.hangoutLink || calendarEvent.conferenceData?.entryPoints?.[0]?.uri || 'None'}
 
     Active Role List:
     ${activeRoles.join(', ')}
@@ -71,6 +73,14 @@ const parseCalendarEvent = async (calendarEvent, activeRoles) => {
        - Look for ANY number associated with candidates (e.g., "2 candidate", "for 3", "5 pax", "1 person", "2 people", "4" etc.).
        - If a number is found in the title or description, extract it as num_candidates.
        - If no number is found in the title or description, return 5 as the default value for num_candidates
+    8. Interview Mode:
+       - If the event has a Google Meet link, conference data, or mentions "online", "virtual", "remote", "video call", return interview_mode as "online".
+       - If the event mentions a physical location, address, office, or "in-person", "offline", return interview_mode as "offline".
+       - Default to "offline" if unclear.
+    9. Venue or Link:
+       - If online: return the Google Meet link or video call URL.
+       - If offline: return the physical location/venue/address.
+       - If not found, return empty string.
 
     Return ONLY JSON:
     {
@@ -79,7 +89,9 @@ const parseCalendarEvent = async (calendarEvent, activeRoles) => {
       "date": "YYYY-MM-DD",
       "start_time": "HH:MM",
       "end_time": "HH:MM",
-      "num_candidates": integer value of candidate count, e.g., 5
+      "num_candidates": integer value of candidate count, e.g., 5,
+      "interview_mode": "online" or "offline",
+      "venue_or_link": "URL or physical address or empty string"
     }
   `;
 
@@ -175,6 +187,23 @@ const parseCalendarEvent = async (calendarEvent, activeRoles) => {
     const istStart = convertToIST(startTime);
     const istEnd = convertToIST(endTime);
 
+    // Determine interview mode and venue/link
+    // Deterministic fallback: check for Google Meet link in the calendar event itself
+    const googleMeetLink = calendarEvent.hangoutLink || calendarEvent.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri || '';
+    const calendarLocation = calendarEvent.location || '';
+
+    let interviewMode = result.interview_mode || 'offline';
+    let venueOrLink = result.venue_or_link || '';
+
+    // Override with deterministic data from Google Calendar if available
+    if (googleMeetLink) {
+      interviewMode = 'online';
+      if (!venueOrLink) venueOrLink = googleMeetLink;
+    } else if (calendarLocation && !venueOrLink) {
+      interviewMode = 'offline';
+      venueOrLink = calendarLocation;
+    }
+
     const finalResult = {
       role: finalRole,
       event_date: result.date,
@@ -182,12 +211,15 @@ const parseCalendarEvent = async (calendarEvent, activeRoles) => {
       end_time: istEnd,
       num_candidates: parseInt(result.num_candidates) || 5,
       extra_candidates: 0,
+      interview_mode: interviewMode,
+      venue_or_link: venueOrLink,
       google_event_id: calendarEvent.id,
     };
 
     console.log(`[CalendarAgent] ✅ SUCCESS: ${finalRole}`);
     console.log(`[CalendarAgent] 🕒 Conversion: UTC ${startTime} -> IST ${istStart}`);
     console.log(`[CalendarAgent] 👥 Candidates: ${finalResult.num_candidates}`);
+    console.log(`[CalendarAgent] 📍 Mode: ${interviewMode} | Venue/Link: ${venueOrLink || '(none)'}`);
     return finalResult;
 
   } catch (err) {

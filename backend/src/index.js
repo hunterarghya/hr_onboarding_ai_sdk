@@ -84,6 +84,8 @@ const initDb = async () => {
         end_time TIME NOT NULL,
         num_candidates INTEGER DEFAULT 5,
         extra_candidates INTEGER DEFAULT 0,
+        interview_mode VARCHAR(50) DEFAULT 'offline',
+        venue_or_link TEXT,
         google_event_id VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -106,6 +108,8 @@ const initDb = async () => {
         ALTER TABLE candidates ADD COLUMN IF NOT EXISTS offered_salary VARCHAR(100);
         ALTER TABLE candidates ADD COLUMN IF NOT EXISTS offered_location VARCHAR(255);
         ALTER TABLE candidates ADD COLUMN IF NOT EXISTS joining_date DATE;
+        ALTER TABLE interview_events ADD COLUMN IF NOT EXISTS interview_mode VARCHAR(20) DEFAULT 'offline';
+        ALTER TABLE interview_events ADD COLUMN IF NOT EXISTS venue_or_link TEXT;
       EXCEPTION WHEN duplicate_column THEN NULL;
       END $$;
     `);

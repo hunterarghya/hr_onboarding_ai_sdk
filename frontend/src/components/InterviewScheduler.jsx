@@ -31,7 +31,8 @@ const InterviewScheduler = ({ token, jobs }) => {
 
   const [newEvent, setNewEvent] = useState({
     role: '', start_time: '09:00', end_time: '13:00',
-    num_candidates: 5, extra_candidates: 0
+    num_candidates: 5, extra_candidates: 0,
+    interview_mode: 'offline', venue_or_link: ''
   });
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -65,7 +66,7 @@ const InterviewScheduler = ({ token, jobs }) => {
       await axios.post(`${API_URL}/interviews/events`, {
         ...newEvent, event_date: selectedDate, sync_calendar: true
       }, { headers });
-      setNewEvent({ role: '', start_time: '09:00', end_time: '13:00', num_candidates: 5, extra_candidates: 0 });
+      setNewEvent({ role: '', start_time: '09:00', end_time: '13:00', num_candidates: 5, extra_candidates: 0, interview_mode: 'offline', venue_or_link: '' });
       setShowEventForm(false);
       fetchEvents();
     } catch (err) { console.error('Error creating event:', err); alert('Failed to create event'); }
@@ -323,6 +324,44 @@ const InterviewScheduler = ({ token, jobs }) => {
                   <input type="number" min="0" value={newEvent.extra_candidates} onChange={e => setNewEvent({ ...newEvent, extra_candidates: parseInt(e.target.value) || 0 })} />
                 </div>
               </div>
+              <div className="form-row">
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label>Mode</label>
+                  <div style={{ display: 'flex', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setNewEvent({ ...newEvent, interview_mode: 'offline', venue_or_link: '' })}
+                      style={{
+                        flex: 1, padding: '0.5rem', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+                        background: newEvent.interview_mode === 'offline' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                        color: newEvent.interview_mode === 'offline' ? '#fff' : 'var(--text-muted)'
+                      }}
+                    >
+                      <MapPin size={14} style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} /> Offline
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewEvent({ ...newEvent, interview_mode: 'online', venue_or_link: '' })}
+                      style={{
+                        flex: 1, padding: '0.5rem', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+                        background: newEvent.interview_mode === 'online' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                        color: newEvent.interview_mode === 'online' ? '#fff' : 'var(--text-muted)'
+                      }}
+                    >
+                      <ExternalLink size={14} style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} /> Online
+                    </button>
+                  </div>
+                </div>
+                <div className="input-group" style={{ flex: 2 }}>
+                  <label>{newEvent.interview_mode === 'online' ? 'Google Meet Link' : 'Venue / Address'}</label>
+                  <input
+                    type="text"
+                    placeholder={newEvent.interview_mode === 'online' ? 'https://meet.google.com/...' : 'e.g. Office, Floor 3, Room B'}
+                    value={newEvent.venue_or_link}
+                    onChange={e => setNewEvent({ ...newEvent, venue_or_link: e.target.value })}
+                  />
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button onClick={handleCreateEvent} className="btn-primary" style={{ flex: 1 }}><Save size={16} /> Save Event</button>
                 <button onClick={() => setShowEventForm(false)} className="btn-primary" style={{ flex: 1, background: 'rgba(255,255,255,0.1)' }}><X size={16} /> Cancel</button>
@@ -356,6 +395,14 @@ const InterviewScheduler = ({ token, jobs }) => {
                     <div className="event-meta">
                       <span><Clock size={14} /> {event.start_time?.slice(0, 5)} — {event.end_time?.slice(0, 5)}</span>
                       <span><Users size={14} /> {event.num_candidates}{event.extra_candidates > 0 ? `+${event.extra_candidates}` : ''} candidates</span>
+                      <span style={{ color: event.interview_mode === 'online' ? '#60a5fa' : '#f59e0b' }}>
+                        {event.interview_mode === 'online' ? <><ExternalLink size={14} /> Online</> : <><MapPin size={14} /> Offline</>}
+                      </span>
+                      {event.venue_or_link && (
+                        event.interview_mode === 'online'
+                          ? <a href={event.venue_or_link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ color: '#60a5fa', fontSize: '0.8rem', textDecoration: 'underline' }}>Meet Link</a>
+                          : <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{event.venue_or_link}</span>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

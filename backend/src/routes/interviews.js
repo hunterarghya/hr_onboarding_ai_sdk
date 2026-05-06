@@ -46,11 +46,13 @@ router.get('/events', async (req, res) => {
  * Create a new interview event (in-app). Optionally sync to Google Calendar.
  */
 router.post('/events', authenticate, async (req, res) => {
-  const { role, event_date, start_time, end_time, num_candidates, extra_candidates, sync_calendar } = req.body;
+  const { role, event_date, start_time, end_time, num_candidates, extra_candidates, interview_mode, venue_or_link, sync_calendar } = req.body;
 
   if (!role || !event_date || !start_time || !end_time) {
     return res.status(400).json({ error: 'role, event_date, start_time, end_time are required' });
   }
+
+  const mode = interview_mode || 'offline';
 
   try {
     let googleEventId = null;
@@ -65,6 +67,8 @@ router.post('/events', authenticate, async (req, res) => {
           end_time,
           num_candidates: num_candidates || 5,
           extra_candidates: extra_candidates || 0,
+          interview_mode: mode,
+          venue_or_link: venue_or_link || '',
         });
       } catch (calErr) {
         console.error('--- [Calendar] Sync failed, saving locally only:', calErr.message);
@@ -72,9 +76,9 @@ router.post('/events', authenticate, async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO interview_events (role, event_date, start_time, end_time, num_candidates, extra_candidates, google_event_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [role, event_date, start_time, end_time, num_candidates || 5, extra_candidates || 0, googleEventId]
+      `INSERT INTO interview_events (role, event_date, start_time, end_time, num_candidates, extra_candidates, interview_mode, venue_or_link, google_event_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [role, event_date, start_time, end_time, num_candidates || 5, extra_candidates || 0, mode, venue_or_link || null, googleEventId]
     );
 
     res.status(201).json(result.rows[0]);
@@ -473,10 +477,10 @@ router.post('/sync-calendar', authenticate, async (req, res) => {
       // Insert into DB
       console.log(`[Sync] Inserting into interview_events table...`);
       await pool.query(
-        `INSERT INTO interview_events (role, event_date, start_time, end_time, num_candidates, extra_candidates, google_event_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO interview_events (role, event_date, start_time, end_time, num_candidates, extra_candidates, interview_mode, venue_or_link, google_event_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT DO NOTHING`,
-        [parsed.role, parsed.event_date, parsed.start_time, parsed.end_time, parsed.num_candidates, parsed.extra_candidates, parsed.google_event_id]
+        [parsed.role, parsed.event_date, parsed.start_time, parsed.end_time, parsed.num_candidates, parsed.extra_candidates, parsed.interview_mode || 'offline', parsed.venue_or_link || null, parsed.google_event_id]
       );
 
       imported++;

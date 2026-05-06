@@ -29,13 +29,23 @@ const createCalendarEvent = async (tokens, eventData) => {
     ? ` + ${eventData.extra_candidates} extra`
     : '';
 
+  const mode = eventData.interview_mode || 'offline';
+  const modeLabel = mode === 'online' ? 'Online (Virtual)' : 'Offline (In-Person)';
+  const venueInfo = eventData.venue_or_link
+    ? (mode === 'online' ? `Meet Link: ${eventData.venue_or_link}` : `Venue: ${eventData.venue_or_link}`)
+    : '';
+
+  const descriptionParts = [
+    `Role: ${eventData.role}`,
+    `Candidates: ${eventData.num_candidates}${extraText}`,
+    `Mode: ${modeLabel}`,
+    venueInfo,
+    `Type: HR Interview Schedule`
+  ].filter(Boolean);
+
   const event = {
     summary: `Interview: ${eventData.role}`,
-    description: [
-      `Role: ${eventData.role}`,
-      `Candidates: ${eventData.num_candidates}${extraText}`,
-      `Type: HR Interview Schedule`
-    ].join('\n'),
+    description: descriptionParts.join('\n'),
     start: {
       dateTime: startDateTime,
       timeZone: 'Asia/Kolkata',
@@ -47,10 +57,27 @@ const createCalendarEvent = async (tokens, eventData) => {
     colorId: '9', // Blueberry
   };
 
-  const response = await calendar.events.insert({
+  // For online interviews, request Google Meet conferencing
+  if (mode === 'online' && !eventData.venue_or_link) {
+    event.conferenceData = {
+      createRequest: {
+        requestId: `hr-interview-${Date.now()}`,
+        conferenceSolutionKey: { type: 'hangoutsMeet' }
+      }
+    };
+  }
+
+  const insertOptions = {
     calendarId: 'primary',
     resource: event,
-  });
+  };
+
+  // Enable conferenceDataVersion if we're creating a Meet link
+  if (event.conferenceData) {
+    insertOptions.conferenceDataVersion = 1;
+  }
+
+  const response = await calendar.events.insert(insertOptions);
 
   console.log(`--- [Calendar] Created event: ${response.data.id} ---`);
   return response.data.id;
