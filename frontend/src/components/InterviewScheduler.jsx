@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Calendar, Plus, ChevronDown, ChevronUp, Users, Clock, Briefcase,
-  CheckSquare, Zap, Edit, Trash2, RefreshCw, Phone, MapPin, Mail,
+  CheckSquare, Zap, Edit, Trash2, RefreshCw, Phone, MapPin, Mail, AlertTriangle,
   MessageCircle, FileText, ExternalLink, Save, X
 } from 'lucide-react';
 
@@ -28,6 +28,8 @@ const InterviewScheduler = ({ token, jobs }) => {
     eventId: null,
     form: { offered_role: '', offered_salary: '', offered_location: '', joining_date: '' }
   });
+  const [mailModal, setMailModal] = useState({ isOpen: false, eventId: null, templates: [], selectedTemplateId: '', sending: false });
+  const [unsentCounts, setUnsentCounts] = useState([]);
 
   const [newEvent, setNewEvent] = useState({
     role: '', start_time: '09:00', end_time: '13:00',
@@ -44,7 +46,14 @@ const InterviewScheduler = ({ token, jobs }) => {
     } catch (err) { console.error('Error fetching events:', err); }
   }, []);
 
-  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  const fetchUnsentCounts = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_URL}/mail/unsent-invites-count`);
+      setUnsentCounts(res.data);
+    } catch (err) { console.error('Error fetching unsent counts:', err); }
+  }, []);
+
+  useEffect(() => { fetchEvents(); fetchUnsentCounts(); }, [fetchEvents, fetchUnsentCounts]);
 
   const fetchAssignedCandidates = async (eventId) => {
     try {
@@ -86,8 +95,40 @@ const InterviewScheduler = ({ token, jobs }) => {
       const res = await axios.post(`${API_URL}/interviews/sync-calendar`, {}, { headers });
       alert(`Sync complete: ${res.data.imported} events imported`);
       fetchEvents();
+      fetchUnsentCounts();
     } catch (err) { console.error('Sync error:', err); alert('Calendar sync failed'); }
     finally { setSyncing(false); }
+  };
+
+  const openMailModal = async (eventId = null) => {
+    try {
+      const res = await axios.get(`${API_URL}/templates`);
+      setMailModal({
+        isOpen: true, eventId,
+        templates: res.data,
+        selectedTemplateId: res.data[0]?.id || '',
+        sending: false
+      });
+    } catch (err) { console.error('Error fetching templates:', err); alert('Failed to load templates'); }
+  };
+
+  const handleSendInvites = async () => {
+    if (!mailModal.selectedTemplateId) return;
+    setMailModal(prev => ({ ...prev, sending: true }));
+    try {
+      const url = mailModal.eventId
+        ? `${API_URL}/mail/interview-invites/${mailModal.eventId}`
+        : `${API_URL}/mail/interview-invites-all`;
+      const res = await axios.post(url, { templateId: mailModal.selectedTemplateId }, { headers });
+      alert(`Done! Sent: ${res.data.sent}, Failed: ${res.data.failed}, Skipped: ${res.data.skipped}`);
+      setMailModal(prev => ({ ...prev, isOpen: false, sending: false }));
+      fetchUnsentCounts();
+      if (mailModal.eventId) fetchAssignedCandidates(mailModal.eventId);
+    } catch (err) {
+      console.error('Mail error:', err);
+      alert('Failed to send emails: ' + (err.response?.data?.details || err.message));
+      setMailModal(prev => ({ ...prev, sending: false }));
+    }
   };
 
   const toggleEventExpand = async (eventId) => {
@@ -244,7 +285,11 @@ const InterviewScheduler = ({ token, jobs }) => {
 
   return (
     <div className="interview-scheduler">
-      <div className="interview-header" style={{ justifyContent: 'flex-end', marginBottom: '2rem' }}>
+      <div className="interview-header" style={{ justifyContent: 'flex-end', marginBottom: '2rem', gap: '0.75rem' }}>
+        <button onClick={() => openMailModal(null)} className="btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+          <Mail size={16} /> Send All Pending Invites
+        </button>
         <button onClick={handleSyncCalendar} disabled={syncing} className="btn-primary"
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
           <RefreshCw size={16} className={syncing ? 'spin' : ''} />
@@ -270,8 +315,9 @@ const InterviewScheduler = ({ token, jobs }) => {
               const isSelected = dateStr === selectedDate;
               const hasEvents = eventDates.has(dateStr);
               const isToday = dateStr === today;
+              const hasUnsent = unsentCounts.some(u => u.event_date?.split('T')[0] === dateStr);
               return (
-                <div key={i} className={`cal-cell ${isSelected ? 'selected' : ''} ${hasEvents ? 'has-events' : ''} ${isToday ? 'today' : ''}`}
+                <div key={i} className={`cal-cell ${isSelected ? 'selected' : ''} ${hasEvents ? 'has-events' : ''} ${isToday ? 'today' : ''} ${hasUnsent ? 'unsent-warning' : ''}`}
                   onClick={() => { setSelectedDate(dateStr); setExpandedEvent(null); setSelectionMode(null); }}>
                   <span>{day}</span>
                   {hasEvents && <div className="event-dot" />}
@@ -406,6 +452,11 @@ const InterviewScheduler = ({ token, jobs }) => {
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {unsentCounts.find(u => u.event_id === event.id) && (
+                      <span className="unsent-badge" title="There are candidates in this event who did not receive interview invite, please review">
+                        <AlertTriangle size={14} /> {unsentCounts.find(u => u.event_id === event.id)?.unsent_count} unsent
+                      </span>
+                    )}
                     {assigned.length > 0 && <span className="badge badge-success">{assigned.length} assigned</span>}
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.id); }}
                       style={{ background: 'transparent', padding: '0.25rem', color: '#ef4444' }}><Trash2 size={16} /></button>
@@ -418,6 +469,9 @@ const InterviewScheduler = ({ token, jobs }) => {
                     {/* Selection mode buttons */}
                     {selectionMode === null && (
                       <div className="selection-buttons">
+                        <button onClick={() => openMailModal(event.id)} className="btn-primary selection-btn" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                          <Mail size={16} /> Send Invites to Candidates
+                        </button>
                         <button onClick={() => startManualSelection(event.id)} className="btn-primary selection-btn">
                           <CheckSquare size={16} /> Choose Candidates Manually
                         </button>
@@ -602,6 +656,31 @@ const InterviewScheduler = ({ token, jobs }) => {
         </div>
       )}
 
+      {/* Mail Template Selection Modal */}
+      {mailModal.isOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div className="glass-card" style={{ maxWidth: '420px', width: '90%', padding: '2rem' }}>
+            <h3 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Mail size={20} /> Send Interview Invites</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+              {mailModal.eventId ? 'Send to unsent candidates in this event.' : 'Send to all unsent candidates across all events.'}
+            </p>
+            <div className="input-group" style={{ marginBottom: '1.5rem' }}>
+              <label>Choose Template</label>
+              <select value={mailModal.selectedTemplateId} onChange={e => setMailModal({ ...mailModal, selectedTemplateId: e.target.value })} className="filter-select" style={{ width: '100%' }}>
+                {mailModal.templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.type})</option>)}
+                {mailModal.templates.length === 0 && <option value="">No templates found</option>}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={handleSendInvites} disabled={mailModal.sending || !mailModal.selectedTemplateId} className="btn-primary" style={{ flex: 1, background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                {mailModal.sending ? 'Sending...' : 'Send Mails'}
+              </button>
+              <button onClick={() => setMailModal(prev => ({ ...prev, isOpen: false }))} className="btn-primary" style={{ flex: 1, background: 'rgba(255,255,255,0.1)' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style dangerouslySetInnerHTML={{ __html: SCHEDULER_STYLES }} />
     </div>
   );
@@ -671,6 +750,9 @@ const SCHEDULER_STYLES = `
 .assigned-section { padding-top: 1.25rem; }
 .row-selected { background: rgba(99,102,241,0.08); }
 .row-selected td { border-color: rgba(99,102,241,0.15); }
+
+.unsent-warning { box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.6); }
+.unsent-badge { display: flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.5rem; border-radius: 1rem; font-size: 0.72rem; font-weight: 700; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); white-space: nowrap; }
 `;
 
 export default InterviewScheduler;

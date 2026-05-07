@@ -11,9 +11,11 @@ const Candidates = ({ token, jobs }) => {
   const [candidates, setCandidates] = useState([]);
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [mailModal, setMailModal] = useState({ isOpen: false, templates: [], selectedTemplateId: '', sending: false });
+  const headers = { Authorization: `Bearer ${token}` };
 
   // Selected candidates filters & pagination
-  const [selectedFilters, setSelectedFilters] = useState({ offered_role: '', offered_location: '', dateFrom: '', dateTo: '' });
+  const [selectedFilters, setSelectedFilters] = useState({ offered_role: '', offered_location: '', dateFrom: '', dateTo: '', offer_sent: '' });
   const [selectedPagination, setSelectedPagination] = useState({
     hasNextPage: false,
     nextCursor: null,
@@ -110,6 +112,37 @@ const Candidates = ({ token, jobs }) => {
       setSelectedFilterOptions(response.data);
     } catch (err) {
       console.error('Error fetching selected filter options:', err);
+    }
+  };
+
+  const openMailModal = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/templates`);
+      setMailModal({
+        isOpen: true,
+        templates: res.data,
+        selectedTemplateId: res.data[0]?.id || '',
+        sending: false
+      });
+    } catch (err) { console.error('Error fetching templates:', err); alert('Failed to load templates'); }
+  };
+
+  const handleSendOfferLetters = async () => {
+    if (!mailModal.selectedTemplateId || selectedCandidates.length === 0) return;
+    setMailModal(prev => ({ ...prev, sending: true }));
+    try {
+      const candidateIds = selectedCandidates.map(c => c.id);
+      const res = await axios.post(`${API_URL}/mail/offer-letters`, {
+        templateId: mailModal.selectedTemplateId,
+        candidateIds
+      }, { headers });
+      alert(`Done! Sent: ${res.data.sent}, Failed: ${res.data.failed}, Skipped: ${res.data.skipped}`);
+      setMailModal(prev => ({ ...prev, isOpen: false, sending: false }));
+      fetchSelectedCandidates();
+    } catch (err) {
+      console.error('Mail error:', err);
+      alert('Failed to send emails: ' + (err.response?.data?.details || err.message));
+      setMailModal(prev => ({ ...prev, sending: false }));
     }
   };
 
@@ -430,9 +463,14 @@ const Candidates = ({ token, jobs }) => {
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)' }}>
             <Users size={20} /> Selected Candidates
           </h3>
-          <button onClick={() => fetchSelectedCandidates(null)} title="Refresh Selected" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem' }}>
-            <RefreshCw size={16} />
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={openMailModal} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+              <Mail size={16} /> Send Offer Letters
+            </button>
+            <button onClick={() => fetchSelectedCandidates(null)} title="Refresh Selected" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem' }}>
+              <RefreshCw size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Selected Filters */}
@@ -451,11 +489,16 @@ const Candidates = ({ token, jobs }) => {
             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
             <input type="date" value={selectedFilters.dateTo} onChange={e => setSelectedFilters({ ...selectedFilters, dateTo: e.target.value })} style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }} />
           </div>
-          {(selectedFilters.offered_role || selectedFilters.offered_location || selectedFilters.dateFrom || selectedFilters.dateTo) && (
-            <button onClick={() => setSelectedFilters({ offered_role: '', offered_location: '', dateFrom: '', dateTo: '' })} style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', borderRadius: '0.5rem', border: '1px solid rgba(239,68,68,0.3)' }}>
+          {(selectedFilters.offered_role || selectedFilters.offered_location || selectedFilters.dateFrom || selectedFilters.dateTo || selectedFilters.offer_sent) && (
+            <button onClick={() => setSelectedFilters({ offered_role: '', offered_location: '', dateFrom: '', dateTo: '', offer_sent: '' })} style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', borderRadius: '0.5rem', border: '1px solid rgba(239,68,68,0.3)' }}>
               Clear Filters
             </button>
           )}
+          <select className="filter-select" value={selectedFilters.offer_sent} onChange={e => setSelectedFilters({ ...selectedFilters, offer_sent: e.target.value })}>
+            <option value="">All Offer Status</option>
+            <option value="false">Not Sent</option>
+            <option value="true">Sent</option>
+          </select>
         </div>
 
         <div className="table-container">
@@ -469,6 +512,7 @@ const Candidates = ({ token, jobs }) => {
                 <th>Joining Date</th>
                 <th>Salary Offered</th>
                 <th>Location</th>
+                <th>Offer Status</th>
               </tr>
             </thead>
             <tbody>
@@ -481,10 +525,16 @@ const Candidates = ({ token, jobs }) => {
                   <td>{c.joining_date ? new Date(c.joining_date).toLocaleDateString() : '—'}</td>
                   <td>{c.offered_salary}</td>
                   <td>{c.offered_location}</td>
+                  <td>
+                    {c.offer_sent
+                      ? <span style={{ padding: '0.2rem 0.5rem', borderRadius: '1rem', fontSize: '0.72rem', fontWeight: 700, background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)' }}>Sent</span>
+                      : <span style={{ padding: '0.2rem 0.5rem', borderRadius: '1rem', fontSize: '0.72rem', fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>Pending</span>
+                    }
+                  </td>
                 </tr>
               ))}
               {selectedCandidates.length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No selected candidates found.</td></tr>
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No selected candidates found.</td></tr>
               )}
             </tbody>
           </table>
@@ -546,6 +596,31 @@ const Candidates = ({ token, jobs }) => {
             <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
               <button onClick={submitSelection} className="btn-primary" style={{ flex: 1 }}>Confirm Selection</button>
               <button onClick={closeSelectionModal} className="btn-primary" style={{ flex: 1, background: 'rgba(255,255,255,0.1)' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mail Template Selection Modal */}
+      {mailModal.isOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div className="glass-card" style={{ maxWidth: '420px', width: '90%', padding: '2rem' }}>
+            <h3 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Mail size={20} /> Send Offer Letters</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+              Sending to <strong>{selectedCandidates.length}</strong> filtered candidates. Only those who haven't received an offer yet will be processed.
+            </p>
+            <div className="input-group" style={{ marginBottom: '1.5rem' }}>
+              <label>Choose Template</label>
+              <select value={mailModal.selectedTemplateId} onChange={e => setMailModal({ ...mailModal, selectedTemplateId: e.target.value })} className="filter-select" style={{ width: '100%' }}>
+                {mailModal.templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.type})</option>)}
+                {mailModal.templates.length === 0 && <option value="">No templates found</option>}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={handleSendOfferLetters} disabled={mailModal.sending || !mailModal.selectedTemplateId} className="btn-primary" style={{ flex: 1, background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                {mailModal.sending ? 'Sending...' : 'Send Offers'}
+              </button>
+              <button onClick={() => setMailModal(prev => ({ ...prev, isOpen: false }))} className="btn-primary" style={{ flex: 1, background: 'rgba(255,255,255,0.1)' }}>Cancel</button>
             </div>
           </div>
         </div>

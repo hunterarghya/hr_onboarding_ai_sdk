@@ -10,6 +10,7 @@ const candidateRoutes = require('./routes/candidates');
 const whatsappRoutes = require('./routes/whatsapp');
 const interviewRoutes = require('./routes/interviews');
 const templateRoutes = require('./routes/templates');
+const mailRoutes = require('./routes/mail');
 const { initWhatsApp } = require('./services/whatsapp');
 const { initCollection, upsertJobDescription } = require('./services/vectorMatch');
 
@@ -66,7 +67,8 @@ const initDb = async () => {
         offered_role VARCHAR(255),
         offered_salary VARCHAR(100),
         offered_location VARCHAR(255),
-        joining_date DATE
+        joining_date DATE,
+        offer_sent BOOLEAN DEFAULT false
       );
 
       CREATE TABLE IF NOT EXISTS scan_timestamps (
@@ -96,6 +98,7 @@ const initDb = async () => {
         event_id INTEGER NOT NULL REFERENCES interview_events(id) ON DELETE CASCADE,
         candidate_id INTEGER NOT NULL REFERENCES candidates(id),
         assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        invite_sent BOOLEAN DEFAULT false,
         UNIQUE(event_id, candidate_id)
       );
 
@@ -134,6 +137,8 @@ const initDb = async () => {
         ALTER TABLE candidates ADD COLUMN IF NOT EXISTS joining_date DATE;
         ALTER TABLE interview_events ADD COLUMN IF NOT EXISTS interview_mode VARCHAR(20) DEFAULT 'offline';
         ALTER TABLE interview_events ADD COLUMN IF NOT EXISTS venue_or_link TEXT;
+        ALTER TABLE interview_candidates ADD COLUMN IF NOT EXISTS invite_sent BOOLEAN DEFAULT false;
+        ALTER TABLE candidates ADD COLUMN IF NOT EXISTS offer_sent BOOLEAN DEFAULT false;
       EXCEPTION WHEN duplicate_column THEN NULL;
       END $$;
     `);
@@ -160,6 +165,7 @@ app.use('/candidates', candidateRoutes);
 app.use('/whatsapp', whatsappRoutes);
 app.use('/interviews', interviewRoutes);
 app.use('/templates', templateRoutes);
+app.use('/mail', mailRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

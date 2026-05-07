@@ -13,6 +13,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/calendar'
 ];
 
@@ -35,8 +36,8 @@ router.get('/google/callback', async (req, res) => {
     const userInfo = await oauth2.userinfo.get();
 
     const token = jwt.sign(
-      { 
-        email: userInfo.data.email, 
+      {
+        email: userInfo.data.email,
         name: userInfo.data.name,
         tokens: tokens // Store tokens to access Gmail API later
       },

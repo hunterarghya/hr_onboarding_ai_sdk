@@ -343,11 +343,11 @@ router.get('/selected/filters', async (req, res) => {
 
 // Get Selected Candidates (with offer details, filtering & cursor pagination)
 router.get('/selected', async (req, res) => {
-  const { limit = 10, cursor, offered_role, offered_location, dateFrom, dateTo } = req.query;
+  const { limit = 10, cursor, offered_role, offered_location, dateFrom, dateTo, offer_sent } = req.query;
   const pageSize = parseInt(limit);
 
   try {
-    let query = 'SELECT id, name, email, phone, offered_role, offered_salary, offered_location, joining_date, status FROM candidates WHERE status = $1';
+    let query = 'SELECT id, name, email, phone, offered_role, offered_salary, offered_location, joining_date, status, offer_sent FROM candidates WHERE status = $1';
     const params = ['selected'];
     let paramIndex = 2;
 
@@ -367,6 +367,10 @@ router.get('/selected', async (req, res) => {
     if (dateTo) {
       query += ` AND joining_date <= $${paramIndex++}`;
       params.push(dateTo);
+    }
+    if (offer_sent !== undefined && offer_sent !== '') {
+      query += ` AND offer_sent = $${paramIndex++}`;
+      params.push(offer_sent === 'true');
     }
 
     // Cursor Logic (keyset pagination on joining_date ASC, id ASC)
